@@ -10,7 +10,6 @@ import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
 from dA import *
 from logistic_sgd import *
-from utils import tile_raster_images
 
 try:
     import PIL.Image as Image
