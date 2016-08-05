@@ -63,7 +63,7 @@ if __name__ == '__main__':
 
     check_pretrain = 'model_1.pkl'
     if not os.path.exists(check_pretrain):
-        model_list, activation_list = SAE(num_neuron_list = num_neuron_list,learning_rate = 0.1)
+        model_list, activation_list = SAE(num_neuron_list = num_neuron_list,learning_rate = 0.01)
 
     else:
         model_list = []
@@ -79,19 +79,28 @@ if __name__ == '__main__':
 
     data_dict = dict()
 
-    for i in range(num_layer):
-        if i == 0:
-            f = gzip.open('mnist.pkl.gz', 'rb')
-            train_set, valid_set, test_set = pickle.load(f,encoding="bytes")
-            train_set = train_set[0]
-            f.close()
-        else:
-            activation = load(activation_list[i-1])
-            train_set = activation[0][0]
+    check_trdata = 'train_1.pkl'
 
-        filename = 'train_'+str(i+1) + '.pkl'
-        save(filename,train_set)
-        data_dict['layer_' + str(i+1)] = filename
+    if not os.path.exists(check_trdata):
+
+        for i in range(num_layer):
+            if i == 0:
+                f = gzip.open('mnist.pkl.gz', 'rb')
+                train_set, valid_set, test_set = pickle.load(f,encoding="bytes")
+                train_set = train_set[0]
+                f.close()
+            else:
+                activation = load(activation_list[i-1])
+                train_set = activation[0][0]
+
+            filename = 'train_'+str(i+1) + '.pkl'
+            save(filename,train_set)
+            data_dict['layer_' + str(i+1)] = filename
+    else:
+        print('float train data already exists ......')
+        for i in range(num_layer):
+            filename = 'train_'+str(i+1) + '.pkl'
+            data_dict['layer_' + str(i+1)] = filename
 
     #Form the whole weight matrix
 

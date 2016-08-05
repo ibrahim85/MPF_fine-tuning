@@ -7,7 +7,7 @@ def load(filename):
     return bob
 
 
-def save(filename,bob):
+def save(filename, bob):
     f = open(filename,'wb')
     pickle.dump(bob,f)
     f.close()

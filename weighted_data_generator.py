@@ -13,11 +13,11 @@ adding more data samples. But then the subsequently training would be much easie
 from sklearn import preprocessing
 import numpy as np
 from utils_mpf import load, save
-
+import pickle
 
 class weighted_data_generator(object):
 
-    def __init__(self, data_dict, n_samples):
+    def __init__(self, data_dict, n_samples, savename):
         '''
         :param nets: nets is the network which needs to be finetuned, it always contains the weights and bias term
         :param data_dict: is of the form { 'layer #': layer output file path}
@@ -32,6 +32,7 @@ class weighted_data_generator(object):
 
         self.n_samples = n_samples
 
+        self.savename = savename
     def data_binarize(self, mnist = True):
         '''
 
@@ -61,9 +62,7 @@ class weighted_data_generator(object):
                 activation =  binarizer.transform(load(v))
                 data_full_layer = np.concatenate((data_full_layer,activation), axis = 1)
             else:
-                print('v')
                 activation = np.random.binomial(1,load(v))
-                print(activation.shape)
                 data_full_layer = np.concatenate((data_full_layer,activation), axis = 1)
 
         return data_full_layer
@@ -82,10 +81,16 @@ class weighted_data_generator(object):
             else:
                     data_samples = np.concatenate((data_samples,self.data_binarize(mnist = mnist)),axis = 0)
 
-        data_path = 'binary_data_samples.pkl'
-        save(data_path,data_samples)
+        print(data_samples.shape)
+        print(data_samples[:10,:10])
 
-        return data_path
+
+        np.save(self.savename,data_samples)
+
+        # data_path = self.savename
+        #
+        # return data_path
+
 
 
 

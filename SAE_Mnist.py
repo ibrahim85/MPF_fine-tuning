@@ -115,7 +115,7 @@ def SAE(dataset = 'mnist.pkl.gz', num_neuron_list = None, learning_rate = 0.001)
 
             print('Pre-train layer %d' % i)
 
-            ae = test_dA(learning_rate=learning_rate, training_epochs= 3,
+            ae = test_dA(learning_rate=learning_rate, training_epochs= 300,
                    dataset= data,batch_size=20,  n_visible = num_neuron_list[i] , n_hidden=num_neuron_list[i+1],
                    model= model_list[i] , output_folder='dA_plots')
 
@@ -125,7 +125,7 @@ def SAE(dataset = 'mnist.pkl.gz', num_neuron_list = None, learning_rate = 0.001)
 
             print('Pre-train the classifier')
 
-            sgd_optimization_mnist(learning_rate=learning_rate, n_epochs=10,
+            sgd_optimization_mnist(learning_rate=learning_rate, n_epochs=1000,
                            dataset= data, model = model_list[i], n_in= num_neuron_list[i], n_out= num_neuron_list[i+1],
                            batch_size=20)
 

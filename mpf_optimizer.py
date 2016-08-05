@@ -12,6 +12,7 @@ import theano.tensor as T
 import os
 from data_generator import *
 from weighted_data_generator import *
+import os.path
 
 '''Optimizes based on MPF for fully-observable boltzmann machine'''
 class MPF_optimizer(object):
@@ -39,6 +40,8 @@ class MPF_optimizer(object):
 
         self.params = [self.W, self.b]
 
+        #self.params = []
+
 
         ''' Computing energy '''
     def energy(self,data_samples):
@@ -51,11 +54,11 @@ class MPF_optimizer(object):
         return -0.5 * wx_term - bias_term
 
 
-    def get_cost_updates(self,learning_rate):
+    def get_cost_updates(self,learning_rate,batch_sz = 20):
 
-        data = T.repeat(self.input,self.input.shape[1])
+        data = T.repeat(self.input, self.input.shape[1], axis=0)
 
-        Y = T.tile(T.eye(self.input.shape[1]),(self.input.shape[0],1))
+        Y = T.tile(T.eye(self.input.shape[1]),(batch_sz,1))
 
         non_data = (data + Y) % 2
 
@@ -166,7 +169,7 @@ def shared_dataset(data_xy, borrow=True):
 
 
 def mnist_mpf(data_dict,W=None,b=None, dataset = 'mnist.pkl.gz',
-              num_neuron_list = None,n_samples = 100,epsilon = 0.01,learning_rate = 0.0001,
+              num_neuron_list = None,n_samples = 100,epsilon = 0.01,learning_rate = 0.001,
               n_epochs=1000,batch_sz = 20,mnist = True, connect_function = '1-bit-flip'):
 
     '''
@@ -185,12 +188,21 @@ def mnist_mpf(data_dict,W=None,b=None, dataset = 'mnist.pkl.gz',
     ################## Loading the Data        #####################
     ################################################################
 
-    data_gen = weighted_data_generator(data_dict = data_dict, n_samples = n_samples)
+    data_path = 'binary_data_samples.npy'
 
-    data_samples = load(data_gen.data_generator(mnist = mnist))
+    if not os.path.exists(data_path):
 
-    print(data_samples.shape)
-    print(data_samples[:10,:10])
+        print('Generating the binary data samples ......')
+
+        data_gen = weighted_data_generator(data_dict = data_dict, n_samples = n_samples,savename=data_path)
+
+        data_gen.data_generator(mnist = mnist)
+
+    else:
+
+        print('Binary data samples already exist ......')
+
+    data_samples = np.load(data_path)
 
     n_train_batches = data_samples.shape[0]//batch_sz
 
@@ -215,7 +227,7 @@ def mnist_mpf(data_dict,W=None,b=None, dataset = 'mnist.pkl.gz',
 
     index = T.lscalar()    # index to a mini batch
     x = T.matrix('x')
-    y = T.matrix('y')
+    y = T.ivector('y')
 
     mpf_optimizer = MPF_optimizer(
         epsilon = epsilon,
@@ -291,6 +303,7 @@ def mnist_mpf(data_dict,W=None,b=None, dataset = 'mnist.pkl.gz',
         for minibatch_index in range(n_train_batches):
 
             minibatch_avg_cost = train_mpf(minibatch_index)
+
             # iteration number
             iter = (epoch - 1) * n_train_batches + minibatch_index
 
