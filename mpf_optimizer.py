@@ -11,13 +11,12 @@ import theano
 import theano.tensor as T
 import os
 from data_generator import *
-from nondata_generator import *
-
+from weighted_data_generator import *
 
 '''Optimizes based on MPF for fully-observable boltzmann machine'''
 class MPF_optimizer(object):
 
-    def __init__(self,epsilon = 0.01,  W_path = None, b_path = None, input = None, connect_function = '1-bit-flip' ):
+    def __init__(self,epsilon = 0.01,  W = None, b = None, input = None, connect_function = '1-bit-flip' ):
         '''
 
         :param W: the weights of the graph
@@ -26,8 +25,8 @@ class MPF_optimizer(object):
         :param connect_function: connection type
         :return:
         '''
-        W = np.load(W_path)
-        b = np.load(b_path)
+        #W = np.load(W_path)
+        #b = np.load(b_path)
 
         self.W = theano.shared(value=np.asarray(W,dtype=theano.config.floatX),name = 'Weight', borrow = True)
         self.b = theano.shared(value=np.asarray(b,dtype=theano.config.floatX),name = 'bias', borrow = True)
@@ -41,7 +40,7 @@ class MPF_optimizer(object):
         self.params = [self.W, self.b]
 
 
-        ''' Computing free energy '''
+        ''' Computing energy '''
     def energy(self,data_samples):
         # assume a graph of 100 nodes, then input of N*100, and W of 100* 100, b of 1*100
         wx = T.dot(T.dot(data_samples, self.W),data_samples.T)
@@ -102,13 +101,15 @@ class MPF_optimizer(object):
         bias = []
         column = num_neuron_list[0]
         row = 0
-        for i in range( int(len(num_neuron_list)-1)):
+        bias_index = 0
+        for i in range(int(len(num_neuron_list)-1)):
 
             Weight.append(self.W[row : row + num_neuron_list[i],
                           column: column + num_neuron_list[i + 1]])
-            bias.append(self.b[row:row + num_neuron_list[i]])
+            bias.append(self.b[bias_index:bias_index + num_neuron_list[i+1]])
             column += num_neuron_list[i + 1]
             row += num_neuron_list[i]
+            bias_index += num_neuron_list[i+1]
 
 
         ## feedforward the neural network and get the softmax output
@@ -164,7 +165,7 @@ def shared_dataset(data_xy, borrow=True):
     return shared_x, T.cast(shared_y, 'int32')
 
 
-def mnist_mpf(data_dict,W_path='',b_path='', dataset = '',
+def mnist_mpf(data_dict,W=None,b=None, dataset = 'mnist.pkl.gz',
               num_neuron_list = None,n_samples = 100,epsilon = 0.01,learning_rate = 0.0001,
               n_epochs=1000,batch_sz = 20,mnist = True, connect_function = '1-bit-flip'):
 
@@ -184,9 +185,12 @@ def mnist_mpf(data_dict,W_path='',b_path='', dataset = '',
     ################## Loading the Data        #####################
     ################################################################
 
-    data_gen = data_generator(data_dict = data_dict,n_samples = n_samples)
+    data_gen = weighted_data_generator(data_dict = data_dict, n_samples = n_samples)
 
-    data_samples = np.load(data_gen.data_generator(mnist = mnist))
+    data_samples = load(data_gen.data_generator(mnist = mnist))
+
+    print(data_samples.shape)
+    print(data_samples[:10,:10])
 
     n_train_batches = data_samples.shape[0]//batch_sz
 
@@ -195,7 +199,7 @@ def mnist_mpf(data_dict,W_path='',b_path='', dataset = '',
 
     with gzip.open(dataset, 'rb') as f:
         try:
-            train_set, valid_set, test_set = pickle.load(f, encoding='latin1')
+            train_set, valid_set, test_set = pickle.load(f, encoding='bytes')
         except:
             train_set, valid_set, test_set = pickle.load(f)
 
@@ -214,11 +218,11 @@ def mnist_mpf(data_dict,W_path='',b_path='', dataset = '',
     y = T.matrix('y')
 
     mpf_optimizer = MPF_optimizer(
-        epsilon = 0.01,
-        W_path = W_path,
-        b_path = b_path,
+        epsilon = epsilon,
+        W = W,
+        b = b,
         input = x,
-        connect_function = '1-bit-flip'
+        connect_function = connect_function
     )
 
 
@@ -263,7 +267,7 @@ def mnist_mpf(data_dict,W_path='',b_path='', dataset = '',
     ################################################################
     ##################  Training MPF Model     #####################
     ################################################################
-    print('... training the model')
+    print('... training the MPF model')
     # early-stopping parameters
     patience = 5000  # look as this many examples regardless
     patience_increase = 2  # wait this much longer when a new best is

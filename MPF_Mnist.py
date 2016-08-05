@@ -1,6 +1,7 @@
 from mpf_optimizer import *
 from SAE_Mnist import SAE
 from utils_mpf import load, save
+import os.path
 
 def get_all_parameters(num_neuron, models = []):
 
@@ -15,16 +16,18 @@ def get_all_parameters(num_neuron, models = []):
       zeros, W2.T, zeros, W3
       zeros, zeros, W3.T, zeros]
 
+
     :param num_neuron: the number of neurons in the whole neural network
     :param models: the list of pre-trained layer by layer network
     :return: the whole weight and bias matrix for the network
     '''
 
-    W = np.zeros(num_neuron,num_neuron)
+    W = np.zeros((num_neuron,num_neuron))
     b = np.zeros(num_neuron)
 
     row = 0
     column = 0
+    bias_index = 0
 
     for i in range(len(models)):
         ae = pickle.load(open(models[i],'rb'),encoding="bytes")
@@ -33,10 +36,11 @@ def get_all_parameters(num_neuron, models = []):
         if column == 0:
             column += Wi.shape[0]
         W[row:row + Wi.shape[0], column:column + Wi.shape[1]] = Wi
-        b[row:row + Wi.shape[0]] = bi
+        b[bias_index:bias_index + Wi.shape[1]] = bi
 
         row += Wi.shape[0]
         column += Wi.shape[1]
+        bias_index += Wi.shape[1]
 
     W = 0.5*(W + W.T)
 
@@ -53,11 +57,21 @@ if __name__ == '__main__':
     In this part, we finish the layer-wise pre-train and get the pre-train layer models and activations
     in each layer.
     '''
-    num_layer = 4
-    num_neuron_list = [784,500,300,10]
+    num_neuron_list = [784,20,10,10]
+    num_layer = len(num_neuron_list)
     num_neuron = np.sum(num_neuron_list)
 
-    model_list, activation_list = SAE(num_neuron_list = num_neuron_list,learning_rate = 0.001)
+    check_pretrain = 'model_1.pkl'
+    if not os.path.exists(check_pretrain):
+        model_list, activation_list = SAE(num_neuron_list = num_neuron_list,learning_rate = 0.1)
+
+    else:
+        model_list = []
+        activation_list = []
+        for i in range(num_layer - 1):
+            model_list.append('model_' + str(i +1) + '.pkl')
+            activation_list.append('activation_' + str(i + 1) + '.pkl')
+        print("Pre-training already finished.......")
 
     ###############################################################
     ############ Form the data_dict for data generator  ###########
@@ -67,10 +81,12 @@ if __name__ == '__main__':
 
     for i in range(num_layer):
         if i == 0:
-            train_set = load('mnist.pkl')
-
+            f = gzip.open('mnist.pkl.gz', 'rb')
+            train_set, valid_set, test_set = pickle.load(f,encoding="bytes")
+            train_set = train_set[0]
+            f.close()
         else:
-            activation = load(activation_list[i])
+            activation = load(activation_list[i-1])
             train_set = activation[0][0]
 
         filename = 'train_'+str(i+1) + '.pkl'
@@ -85,3 +101,6 @@ if __name__ == '__main__':
     ############ Train MPF fine-tuning with SGD  ##################
     ###############################################################
 
+    mnist_mpf(data_dict = data_dict, W=W,b=b,
+              num_neuron_list = num_neuron_list,n_samples = 10,epsilon = 0.01,learning_rate = 0.1,
+              n_epochs=1000,batch_sz = 20,mnist = True, connect_function = '1-bit-flip')

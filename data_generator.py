@@ -75,7 +75,7 @@ class data_generator(object):
                     data_samples = np.concatenate((data_samples,self.data_binarize(mnist = mnist)),axis = 0)
 
         data_path = 'binary_data_samples.npy'
-        np.save(data_path,data_samples)
+        np.save(data_path, data_samples)
 
         return data_path
 

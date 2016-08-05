@@ -15,7 +15,7 @@ import numpy as np
 from utils_mpf import load, save
 
 
-class data_generator(object):
+class weighted_data_generator(object):
 
     def __init__(self, data_dict, n_samples):
         '''
@@ -28,8 +28,7 @@ class data_generator(object):
         #     self.W = nets.W
         #     self.bias = nets.bias
 
-        if self.data_dict is None:
-            self.data_dict = data_dict
+        self.data_dict = data_dict
 
         self.n_samples = n_samples
 
@@ -50,15 +49,21 @@ class data_generator(object):
 
         data_full_layer = None
         list_keys = list(self.data_dict.keys())
+        num_layer= len(list_keys)
 
-        for k,v in self.data_dict.items():
-            if k == list_keys[0]:
+
+        for i in range(len(list_keys)):
+            k = 'layer_' + str(i+1)
+            v = self.data_dict[k]
+            if k == 'layer_1':
                 data_full_layer = data_layer_1
-            elif k != list_keys[-1]:
+            elif k != 'layer_' + str(num_layer):
                 activation =  binarizer.transform(load(v))
                 data_full_layer = np.concatenate((data_full_layer,activation), axis = 1)
             else:
+                print('v')
                 activation = np.random.binomial(1,load(v))
+                print(activation.shape)
                 data_full_layer = np.concatenate((data_full_layer,activation), axis = 1)
 
         return data_full_layer
