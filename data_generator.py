@@ -19,7 +19,7 @@ import pickle
 
 class data_generator(object):
 
-    def __init__(self, data_dict, n_samples):
+    def __init__(self, data_dict, n_samples, savename):
         '''
         :param nets: nets is the network which needs to be finetuned, it always contains the weights and bias term
         :param data_dict: is of the form { 'layer_#': layer output file path}
@@ -30,10 +30,11 @@ class data_generator(object):
         #     self.W = nets.W
         #     self.bias = nets.bias
 
-        if self.data_dict is None:
-            self.data_dict = data_dict
+
+        self.data_dict = data_dict
 
         self.n_samples = n_samples
+        self.savename = savename
 
     def data_binarize(self, mnist = True, label_vectors = None):
         '''
@@ -83,16 +84,16 @@ class data_generator(object):
         f.close()
         label_vectors = generate_label_vector(train_label, num_classes=10)
 
+        print(label_vectors[:2,:])
+
         for i in range(self.n_samples):
             if data_samples is None:
                     data_samples = self.data_binarize(mnist= mnist, label_vectors= label_vectors)
             else:
                     data_samples = np.concatenate((data_samples,self.data_binarize(mnist = mnist)),axis = 0)
 
-        data_path = 'binary_data_samples.npy'
-        np.save(data_path, data_samples)
+        np.save(self.savename,data_samples)
 
-        return data_path
 
 
 def generate_label_vector(label, num_classes):
