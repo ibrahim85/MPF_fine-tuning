@@ -17,7 +17,7 @@ import os.path
 '''Optimizes based on MPF for fully-observable boltzmann machine'''
 class MPF_optimizer(object):
 
-    def __init__(self,epsilon = 0.01,  W = None, b = None, input = None, connect_function = '1-bit-flip' ):
+    def __init__(self,epsilon = 0.01,  W = None, b = None, input = None,batch_sz = 10, connect_function = '1-bit-flip' ):
         '''
 
         :param W: the weights of the graph
@@ -28,11 +28,13 @@ class MPF_optimizer(object):
         '''
         #W = np.load(W_path)
         #b = np.load(b_path)
+        self.num_neuron = W.shape[0]
 
         self.W = theano.shared(value=np.asarray(W,dtype=theano.config.floatX),name = 'Weight', borrow = True)
         self.b = theano.shared(value=np.asarray(b,dtype=theano.config.floatX),name = 'bias', borrow = True)
         self.epsilon = epsilon
 
+        self.batch_sz = batch_sz
         if not input:
             self.input = T.matrix('input')
         else:
@@ -54,17 +56,21 @@ class MPF_optimizer(object):
         return -0.5 * wx_term - bias_term
 
 
-    def get_cost_updates(self,learning_rate,batch_sz = 20):
+    def get_cost_updates(self,learning_rate):
 
-        data = T.repeat(self.input, self.input.shape[1], axis=0)
+        # data = T.repeat(self.input, self.input.shape[1], axis=0)
+        #
+        # Y = T.tile(T.eye(self.input.shape[1]),(batch_sz,1))
+        #
+        # non_data = (data + Y) % 2
+        Y = self.input.reshape((self.batch_sz, 1, self.num_neuron), 3)\
+            * T.ones((1, self.num_neuron, 1)) #tile out data vectors (repeat each one D times)
+        non_data = (Y + T.eye(self.num_neuron).reshape((1, self.num_neuron, self.num_neuron), 3))%2 # flip each bit once
 
-        Y = T.tile(T.eye(self.input.shape[1]),(batch_sz,1))
 
-        non_data = (data + Y) % 2
+        energy_difference = 0.5* (self.energy(self.input).dimshuffle(0, 'x') - self.energy(non_data))
 
-        energy_difference = 0.5* (self.energy(data) - self.energy(non_data))
-
-        cost = (self.epsilon/self.input.shape[0]) * T.sum(T.exp(energy_difference))
+        cost = (self.epsilon/self.batch_sz) * T.sum(T.exp(energy_difference))
         gparams = T.grad(cost, self.params)
             # generate the list of updates
         updates = [
@@ -234,6 +240,7 @@ def mnist_mpf(data_dict,W=None,b=None, dataset = 'mnist.pkl.gz',
         W = W,
         b = b,
         input = x,
+        batch_sz=batch_sz,
         connect_function = connect_function
     )
 

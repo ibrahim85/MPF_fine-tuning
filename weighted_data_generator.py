@@ -84,7 +84,6 @@ class weighted_data_generator(object):
         print(data_samples.shape)
         print(data_samples[:10,:10])
 
-
         np.save(self.savename,data_samples)
 
         # data_path = self.savename

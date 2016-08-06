@@ -57,7 +57,7 @@ if __name__ == '__main__':
     In this part, we finish the layer-wise pre-train and get the pre-train layer models and activations
     in each layer.
     '''
-    num_neuron_list = [784,20,10,10]
+    num_neuron_list = [784,500,250,10]
     num_layer = len(num_neuron_list)
     num_neuron = np.sum(num_neuron_list)
 
@@ -111,5 +111,5 @@ if __name__ == '__main__':
     ###############################################################
 
     mnist_mpf(data_dict = data_dict, W=W,b=b,
-              num_neuron_list = num_neuron_list,n_samples = 10,epsilon = 0.01,learning_rate = 0.1,
-              n_epochs=1000,batch_sz = 20,mnist = True, connect_function = '1-bit-flip')
+              num_neuron_list = num_neuron_list,n_samples = 1,epsilon = 0.01,learning_rate = 0.1,
+                 n_epochs=1000,batch_sz = 20,mnist = True, connect_function = '1-bit-flip')

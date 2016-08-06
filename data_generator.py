@@ -12,7 +12,9 @@ adding more data samples. But then the subsequently training would be much easie
 
 from sklearn import preprocessing
 import numpy as np
-
+from utils_mpf import load, save
+import gzip
+import pickle
 
 
 class data_generator(object):
@@ -33,7 +35,7 @@ class data_generator(object):
 
         self.n_samples = n_samples
 
-    def data_binarize(self, mnist = True):
+    def data_binarize(self, mnist = True, label_vectors = None):
         '''
 
         :param mnist: whether we are using mnist datasets.
@@ -43,20 +45,27 @@ class data_generator(object):
         :return: data_full_layer is one instantiation of the binary outputs of all the neurons
         '''
 
-        if mnist:
-            binarizer = preprocessing.Binarizer(threshold=0.5)
-            self.data_layer_1 =  binarizer.transform(np.load(self.data_dict['layer_1'])/255)
-        else:
-            self.data_layer_1 = np.random.binomial(1,np.load(self.data_dict['layer_1']))
+
+        binarizer = preprocessing.Binarizer(threshold=0.5)
+        data_layer_1 =  binarizer.transform(load(self.data_dict['layer_1']))
+
+
+        list_keys = list(self.data_dict.keys())
+        num_layer= len(list_keys)
 
         data_full_layer = None
 
-        for k,v in self.data_dict.items():
+
+        for i in range(len(list_keys)):
+            k = 'layer_' + str(i+1)
+            v = self.data_dict[k]
             if k == 'layer_1':
-                data_full_layer = self.data_layer_1
-            else:
-                activation = np.random.binomial(1,np.load(v))
+                data_full_layer = data_layer_1
+            elif k != 'layer_' + str(num_layer):
+                activation = np.random.binomial(1,load(v))
                 data_full_layer = np.concatenate((data_full_layer,activation), axis = 1)
+            else:
+                data_full_layer = np.concatenate((data_full_layer,label_vectors), axis = 1)
 
         return data_full_layer
 
@@ -68,9 +77,15 @@ class data_generator(object):
         '''
         data_samples = None
 
+        f = gzip.open('mnist.pkl.gz', 'rb')
+        train_set, valid_set, test_set = pickle.load(f,encoding="bytes")
+        train_label = train_set[1]
+        f.close()
+        label_vectors = generate_label_vector(train_label, num_classes=10)
+
         for i in range(self.n_samples):
             if data_samples is None:
-                    data_samples = self.data_binarize(mnist= mnist)
+                    data_samples = self.data_binarize(mnist= mnist, label_vectors= label_vectors)
             else:
                     data_samples = np.concatenate((data_samples,self.data_binarize(mnist = mnist)),axis = 0)
 
@@ -79,6 +94,15 @@ class data_generator(object):
 
         return data_path
 
+
+def generate_label_vector(label, num_classes):
+    a = []
+    for i in range(len(label)):
+        b = np.zeros(num_classes)
+        b[label[i]] = 1
+        a.append(b)
+
+    return np.asarray(a)
 
 
 
