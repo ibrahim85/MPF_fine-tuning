@@ -111,5 +111,5 @@ if __name__ == '__main__':
     ###############################################################
 
     mnist_mpf(data_dict = data_dict, W=W,b=b,
-              num_neuron_list = num_neuron_list,n_samples = 1,epsilon = 0.01,learning_rate = 0.1,
+              num_neuron_list = num_neuron_list,n_samples = 1,epsilon = 0.01,learning_rate = 0.001,
                  n_epochs=1000,batch_sz = 20,mnist = True, connect_function = '1-bit-flip')

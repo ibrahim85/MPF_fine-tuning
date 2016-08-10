@@ -58,17 +58,20 @@ class MPF_optimizer(object):
 
     def get_cost_updates(self,learning_rate):
 
-        # data = T.repeat(self.input, self.input.shape[1], axis=0)
-        #
-        # Y = T.tile(T.eye(self.input.shape[1]),(batch_sz,1))
-        #
-        # non_data = (data + Y) % 2
-        Y = self.input.reshape((self.batch_sz, 1, self.num_neuron), 3)\
-            * T.ones((1, self.num_neuron, 1)) #tile out data vectors (repeat each one D times)
-        non_data = (Y + T.eye(self.num_neuron).reshape((1, self.num_neuron, self.num_neuron), 3))%2 # flip each bit once
+        data = T.repeat(self.input, self.input.shape[1], axis=0)
+
+        Y = T.tile(T.eye(self.input.shape[1]),(self.batch_sz,1))
+
+        non_data = (data + Y) % 2
 
 
-        energy_difference = 0.5* (self.energy(self.input).dimshuffle(0, 'x') - self.energy(non_data))
+        # Y = self.input.reshape((self.batch_sz, 1, self.num_neuron), 3)\
+        #     * T.ones((1, self.num_neuron, 1)) #tile out data vectors (repeat each one D times)
+        # non_data = (Y + T.eye(self.num_neuron).reshape((1, self.num_neuron, self.num_neuron), 3))%2 # flip each bit once
+
+
+        #energy_difference = 0.5* (self.energy(self.input).dimshuffle(0, 'x') - self.energy(non_data))
+        energy_difference = 0.5*(self.energy(data) - self.energy(non_data))
 
         cost = (self.epsilon/self.batch_sz) * T.sum(T.exp(energy_difference))
         gparams = T.grad(cost, self.params)
