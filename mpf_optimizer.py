@@ -203,7 +203,7 @@ def mnist_mpf(data_dict,W=None,b=None, dataset = 'mnist.pkl.gz',
 
         print('Generating the binary data samples ......')
 
-        data_gen = weighted_data_generator(data_dict = data_dict, n_samples = n_samples,savename=data_path)
+        data_gen = data_generator(data_dict = data_dict, n_samples = n_samples,savename=data_path)
 
         data_gen.data_generator(mnist = mnist)
 
