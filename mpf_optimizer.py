@@ -73,7 +73,7 @@ class MPF_optimizer(object):
 
 
         corrupt = rng.binomial(size=self.input.shape, n=1,
-                                        p = 1 - 0.2,
+                                        p = 0.2,
                                         dtype=theano.config.floatX)
 
         non_data = (self.input + corrupt)%2
