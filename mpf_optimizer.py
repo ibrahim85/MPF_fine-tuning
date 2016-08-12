@@ -58,11 +58,16 @@ class MPF_optimizer(object):
 
     def get_cost_updates(self,learning_rate):
 
-        data = T.repeat(self.input, self.input.shape[1], axis=0)
+        # data = T.repeat(self.input, self.input.shape[1], axis=0)
+        #
+        # Y = T.tile(T.eye(self.input.shape[1]),(self.batch_sz,1))
+        #
+        # non_data = (data + Y) % 2
 
-        Y = T.tile(T.eye(self.input.shape[1]),(self.batch_sz,1))
+        corrupt = theano.shared(value = np.asarray(np.random.binomial(n=1,p = 0.2,
+                                size=(self.batch_sz,self.num_neuron))),dtype = theano.config.floatX)
 
-        non_data = (data + Y) % 2
+        non_data = (self.input + corrupt)%2
 
 
         # Y = self.input.reshape((self.batch_sz, 1, self.num_neuron), 3)\
@@ -71,7 +76,7 @@ class MPF_optimizer(object):
 
 
         #energy_difference = 0.5* (self.energy(self.input).dimshuffle(0, 'x') - self.energy(non_data))
-        energy_difference = 0.5*(self.energy(data) - self.energy(non_data))
+        energy_difference = 0.5*(self.energy(self.input) - self.energy(non_data))
 
         cost = (self.epsilon/self.batch_sz) * T.sum(T.exp(energy_difference))
         gparams = T.grad(cost, self.params)
