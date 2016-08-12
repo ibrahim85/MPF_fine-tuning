@@ -13,6 +13,8 @@ import os
 from data_generator import *
 from weighted_data_generator import *
 import os.path
+from theano.tensor.shared_randomstreams import RandomStreams
+
 
 '''Optimizes based on MPF for fully-observable boltzmann machine'''
 class MPF_optimizer(object):
@@ -64,8 +66,15 @@ class MPF_optimizer(object):
         #
         # non_data = (data + Y) % 2
 
-        corrupt = theano.shared(value = np.asarray(np.random.binomial(n=1,p = 0.2,
-                                size=(self.batch_sz,self.num_neuron))),dtype = theano.config.floatX)
+
+        rs = np.random.RandomState(1234)
+
+        rng = T.shared_randomstreams.RandomStreams(rs.randint(999999))
+
+
+        corrupt = rng.binomial(size=self.input.shape, n=1,
+                                        p = 1 - 0.2,
+                                        dtype=theano.config.floatX)
 
         non_data = (self.input + corrupt)%2
 
