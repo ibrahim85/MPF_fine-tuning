@@ -67,16 +67,22 @@ class MPF_optimizer(object):
         # non_data = (data + Y) % 2
 
 
-        rs = np.random.RandomState(1234)
+        # rs = np.random.RandomState(1234)
+        #
+        # rng = T.shared_randomstreams.RandomStreams(rs.randint(999999))
+        #
+        #
+        # corrupt = rng.binomial(size=self.input.shape, n=1,
+        #                                 p = 0.2,
+        #                                 dtype=theano.config.floatX)
+        #
+        # non_data = (self.input + corrupt)%2
 
-        rng = T.shared_randomstreams.RandomStreams(rs.randint(999999))
+        z = 1/2 - self.input
 
+        energy_difference = z * (T.dot(self.input,self.W)+ self.b.reshape([1,-1]))
 
-        corrupt = rng.binomial(size=self.input.shape, n=1,
-                                        p = 0.2,
-                                        dtype=theano.config.floatX)
-
-        non_data = (self.input + corrupt)%2
+        #cost = T.sum(p) * (self.epsilon/self.batch_sz)
 
 
         # Y = self.input.reshape((self.batch_sz, 1, self.num_neuron), 3)\
@@ -85,9 +91,10 @@ class MPF_optimizer(object):
 
 
         #energy_difference = 0.5* (self.energy(self.input).dimshuffle(0, 'x') - self.energy(non_data))
-        energy_difference = 0.5*(self.energy(self.input) - self.energy(non_data))
-
+        # energy_difference = 0.5*(self.energy(self.input) - self.energy(non_data))
+        #
         cost = (self.epsilon/self.batch_sz) * T.sum(T.exp(energy_difference))
+
         gparams = T.grad(cost, self.params)
             # generate the list of updates
         updates = [
