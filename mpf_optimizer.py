@@ -13,6 +13,7 @@ import os
 from data_generator import *
 from weighted_data_generator import *
 import os.path
+from lasagne.updates import nesterov_momentum
 from theano.tensor.shared_randomstreams import RandomStreams
 
 
@@ -95,12 +96,15 @@ class MPF_optimizer(object):
         #
         cost = (self.epsilon/self.batch_sz) * T.sum(T.exp(energy_difference))
 
-        gparams = T.grad(cost, self.params)
+        #gparams = T.grad(cost, self.params)
             # generate the list of updates
-        updates = [
-            (params, params - learning_rate * gparams)
-            for params, gparams in zip(self.params, gparams)
-            ]
+        # updates = [
+        #     (params, params - learning_rate * gparams)
+        #     for params, gparams in zip(self.params, gparams)
+        #     ]
+
+        updates = nesterov_momentum(cost, self.params, learning_rate = learning_rate, momentum=0.9)
+
         return cost, updates
 
     # def hierarchy_W(self,num_neuron_list):
