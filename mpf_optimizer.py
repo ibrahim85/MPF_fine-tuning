@@ -20,7 +20,7 @@ from theano.tensor.shared_randomstreams import RandomStreams
 '''Optimizes based on MPF for fully-observable boltzmann machine'''
 class MPF_optimizer(object):
 
-    def __init__(self,epsilon = 0.01,  W = None, b = None, input = None,batch_sz = 10, connect_function = '1-bit-flip' ):
+    def __init__(self,epsilon = 0.01, num_units = 100, W = None, b = None, input = None,batch_sz = 10, connect_function = '1-bit-flip' ):
         '''
 
         :param W: the weights of the graph
@@ -31,10 +31,31 @@ class MPF_optimizer(object):
         '''
         #W = np.load(W_path)
         #b = np.load(b_path)
-        self.num_neuron = W.shape[0]
+        self.num_neuron = num_units
+        numpy_rng = np.random.RandomState(123)
 
-        self.W = theano.shared(value=np.asarray(W,dtype=theano.config.floatX),name = 'Weight', borrow = True)
-        self.b = theano.shared(value=np.asarray(b,dtype=theano.config.floatX),name = 'bias', borrow = True)
+        if W is None:
+            initial_W = np.asarray(numpy_rng.uniform(low= -1,high= 1,size=(num_units, num_units)) *
+                                   (np.ones((num_units,num_units)) - np.identity(num_units)),
+                dtype=theano.config.floatX
+            )
+            # theano shared variables for weights and biases
+            self.W = theano.shared(value= (initial_W + initial_W.T)/2, name='W', borrow=True)
+        else:
+            self.W = theano.shared(value=np.asarray(W,dtype=theano.config.floatX),name = 'Weight', borrow = True)
+
+        if b is None:
+            self.b = theano.shared(
+                value=np.zeros(
+                    self.num_neuron,
+                    dtype=theano.config.floatX
+                ),
+                name='bias',
+                borrow=True
+            )
+        else:
+            self.b = theano.shared(value=np.asarray(b,dtype=theano.config.floatX),name = 'bias', borrow = True)
+
         self.epsilon = epsilon
 
         self.batch_sz = batch_sz
@@ -79,6 +100,8 @@ class MPF_optimizer(object):
         #
         # non_data = (self.input + corrupt)%2
 
+
+
         z = 1/2 - self.input
 
         energy_difference = z * (T.dot(self.input,self.W)+ self.b.reshape([1,-1]))
@@ -103,9 +126,10 @@ class MPF_optimizer(object):
         #     for params, gparams in zip(self.params, gparams)
         #     ]
 
-        updates = nesterov_momentum(cost, self.params, learning_rate = learning_rate, momentum=0.9)
+        #updates = nesterov_momentum(cost, self.params, learning_rate = learning_rate, momentum=0.9)
 
-        return cost, updates
+
+        return cost
 
     # def hierarchy_W(self,num_neuron_list):
     #     '''
