@@ -80,7 +80,6 @@ class gibbs_sample(object):
         :param x_count: the current status of the graph
         :return: the new state after draw a die with respect to the prob of the node
         '''
-        print(x_count)
         prob = sigmoid(np.dot(x_count,self.J[:,count]) + self.b[count])
 
         gen_count_bit = np.random.binomial(n=1, p = prob)
@@ -157,19 +156,19 @@ if __name__ == '__main__':
 
     gibbs_samplor = gibbs_sample()
 
-    train_samples = gibbs_samplor.gibbs_sample(step = 10, n_samples=10)
+    train_samples = gibbs_samplor.gibbs_sample(step = 10, n_samples=10000)
 
-    np.save('gibbs_samples.npy',train_samples)
+    np.save('g_samples.npy',train_samples)
 
-    np.save('gibbs_weight.npy', gibbs_samplor.J)
+    np.save('g_weight.npy', gibbs_samplor.J)
 
-    np.save('gibbs_bias.npy',gibbs_samplor.b)
+    np.save('g_bias.npy',gibbs_samplor.b)
 
 
     # print(np.load('gibbs_weight.npy').shape)
     # print(np.load('gibbs_bias.npy'))
-    print(np.load('gibbs_samples.npy').shape)
-    print(np.load('gibbs_samples.npy')[:10,:])
+    print(np.load('g_samples.npy').shape)
+    print(np.load('g_samples.npy')[:10,:])
 
 
 

@@ -20,7 +20,7 @@ from theano.tensor.shared_randomstreams import RandomStreams
 '''Optimizes based on MPF for fully-observable boltzmann machine'''
 class MPF_optimizer(object):
 
-    def __init__(self,epsilon = 0.01, num_units = 100, W = None, b = None, input = None,batch_sz = 10, connect_function = '1-bit-flip' ):
+    def __init__(self,epsilon = 1, num_units = 100, W = None, b = None, input = None,batch_sz = 10, connect_function = '1-bit-flip' ):
         '''
 
         :param W: the weights of the graph
@@ -32,10 +32,10 @@ class MPF_optimizer(object):
         #W = np.load(W_path)
         #b = np.load(b_path)
         self.num_neuron = num_units
-        numpy_rng = np.random.RandomState(123)
+        numpy_rng = np.random.RandomState(123456)
 
         if W is None:
-            initial_W = np.asarray(numpy_rng.uniform(low= -1,high= 1,size=(num_units, num_units)) *
+            initial_W = np.asarray(numpy_rng.randn(num_units, num_units) / np.sqrt(self.num_neuron) / 100 *
                                    (np.ones((num_units,num_units)) - np.identity(num_units)),
                 dtype=theano.config.floatX
             )
@@ -130,21 +130,6 @@ class MPF_optimizer(object):
 
 
         return cost
-
-    # def hierarchy_W(self,num_neuron_list):
-    #     '''
-    #
-    #     :param num_neuron_list: a list of the number of neurons in each layer
-    #     :return:
-    #     '''
-    #     Weight = []
-    #     column = 0
-    #     for i in range(len(num_neuron_list)-1):
-    #         Weight.append(self.W[num_neuron_list[i] : num_neuron_list[i]+num_neuron_list[i+1],
-    #                       column:column + num_neuron_list[i]])
-    #         column += num_neuron_list[i]
-    #
-    #     return Weight
 
 
     def error(self,num_neuron_list,data_x,data_y):

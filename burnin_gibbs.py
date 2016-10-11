@@ -37,8 +37,6 @@ class burnin_gibbs(object):
         # The bias term may not be zeros.
         if not b:
             b = - np.sum(self.J,axis = 1)
-
-
         self.b = b
 
 
@@ -65,7 +63,7 @@ class burnin_gibbs(object):
         for i in range(sample_steps):
 
             E_act = 2 * np.dot(x, self.J[:,update_i[i]]) + self.b[update_i[i]]
-            p_act = sigmoid(- E_act)
+            p_act = sigmoid(E_act)
             if p_act > treshhold_i[i]:
                 x[update_i[i]] = 1
             else:
