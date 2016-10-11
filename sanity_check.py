@@ -62,18 +62,20 @@ def check_sanity(W,bias,samples):
         on_unused_input='warn',
     )
 
-    training_epochs = 1000
+    training_epochs = 200
 
     start_time = timeit.default_timer()
 
     # go through training epochs
     mean_epoch_error = []
+    norm_epoch_error = []
     bias_mean_epoch_error = []
     for epoch in range(training_epochs):
 
         # go through the training set
         mean_cost = []
         mean_batch_error = []
+        norm_batch_error = []
 
 
         for batch_index in range(n_train_batches):
@@ -81,8 +83,11 @@ def check_sanity(W,bias,samples):
             weight = mpf_optimizer.W.get_value(borrow = True)
             bia = mpf_optimizer.b.get_value(borrow = True)
             mean_batch_error += [np.sum((W - mpf_optimizer.W.get_value(borrow=True))**2)]
+            norm_batch_error += [np.sum(( W/(np.sum(W**2)) -
+            mpf_optimizer.W.get_value(borrow=True)/(np.sum(mpf_optimizer.W.get_value(borrow=True)**2)) )**2 )]
 
         mean_epoch_error += [np.mean(np.sqrt(mean_batch_error))]
+        norm_epoch_error += [np.mean(np.sqrt(norm_batch_error))]
         print(mean_epoch_error[-1])
 
         print('Training epoch %d, cost is %f' % (epoch, np.mean(mean_cost) ) )
@@ -94,7 +99,7 @@ def check_sanity(W,bias,samples):
 
     print ('Training took %f minutes' % (pretraining_time / 60.))
 
-    return mean_epoch_error
+    return mean_epoch_error, norm_epoch_error
 
 
 
@@ -106,9 +111,12 @@ if __name__ == '__main__':
     print(bias[:10])
     samples = 'gibbs_samples.npy'
 
-    error = check_sanity(W,bias,samples)
+    error, norm_error = check_sanity(W,bias,samples)
     plt.plot(error)
     plt.show()
+    plt.plot(norm_error)
+    plt.show()
+
 
 
 

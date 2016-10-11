@@ -80,10 +80,10 @@ class gibbs_sample(object):
         :param x_count: the current status of the graph
         :return: the new state after draw a die with respect to the prob of the node
         '''
-
+        print(x_count)
         prob = sigmoid(np.dot(x_count,self.J[:,count]) + self.b[count])
 
-        gen_count_bit = np.random.binomial(n=1, p = prob )
+        gen_count_bit = np.random.binomial(n=1, p = prob)
 
         gen_sample = x_count
 
@@ -101,7 +101,9 @@ class gibbs_sample(object):
         count = np.random.randint(100)
         #one_round_samples = []
         real_samples = []
+
         gen_sample = start
+
         for i in range(self.num_units):
 
             gen_sample = self.onestep_gibbs(count=count,x_count = gen_sample)
@@ -155,7 +157,7 @@ if __name__ == '__main__':
 
     gibbs_samplor = gibbs_sample()
 
-    train_samples = gibbs_samplor.gibbs_sample(step = 10, n_samples=10000)
+    train_samples = gibbs_samplor.gibbs_sample(step = 10, n_samples=10)
 
     np.save('gibbs_samples.npy',train_samples)
 
