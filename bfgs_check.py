@@ -78,6 +78,7 @@ if __name__ == '__main__':
     W2 = W_prime.ravel()
 
     np.save('W_prime.npy',W_prime)
+    np.save('b_prime.npy',b_prime)
 
     plt.plot(W1[900:1000])
     plt.plot(W2[900:1000])
@@ -90,6 +91,9 @@ if __name__ == '__main__':
     plt.imshow(np.abs(W- W_prime))
     plt.colorbar()
     plt.show()
+
+    ###Fianl error 0.06#####
+
 
 
     #

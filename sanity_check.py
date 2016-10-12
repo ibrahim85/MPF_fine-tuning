@@ -17,12 +17,12 @@ def check_sanity(W,bias,samples):
     :return: The square error of the parameters
     '''
     epsilon = 0.01
-    learning_rate = 0.01
+    learning_rate = 0.001
     connect_function = '1-bit-flip'
     num_units = 100
     index = T.lscalar()    # index to a mini batch
     x = T.matrix('x')
-    batch_sz = 20
+    batch_sz = 40
 
     mpf_optimizer = MPF_optimizer(
         epsilon = epsilon,
@@ -62,7 +62,7 @@ def check_sanity(W,bias,samples):
         on_unused_input='warn',
     )
 
-    training_epochs = 200
+    training_epochs = 3000
 
     start_time = timeit.default_timer()
 
@@ -85,15 +85,15 @@ def check_sanity(W,bias,samples):
 
             mean_batch_error += [np.sum((W - mpf_optimizer.W.get_value(borrow=True))**2)]
 
-            norm_batch_error += [np.sum(( W/(np.sum(W**2)) -
-            mpf_optimizer.W.get_value(borrow=True)/(np.sum(mpf_optimizer.W.get_value(borrow=True)**2)) )**2 )]
+            # norm_batch_error += [np.sum(( W/(np.sum(W**2)) -
+            # mpf_optimizer.W.get_value(borrow=True)/(np.sum(mpf_optimizer.W.get_value(borrow=True)**2)) )**2 )]
 
-        mean_epoch_error += [np.mean(np.sqrt(mean_batch_error))]
-        norm_epoch_error += [np.mean(np.sqrt(norm_batch_error))]
+        mean_epoch_error += [np.mean((mean_batch_error))]
+        # norm_epoch_error += [np.mean(np.sqrt(norm_batch_error))]
 
-        print(mean_epoch_error[-1])
-
-        print('Training epoch %d, cost is %f' % (epoch, np.mean(mean_cost) ) )
+        # print(mean_epoch_error[-1]/10000)
+        #
+        # print('Training epoch %d, cost is %f' % (epoch, np.mean(mean_cost) ) )
 
     end_time = timeit.default_timer()
 
@@ -102,44 +102,53 @@ def check_sanity(W,bias,samples):
     print ('Training took %f minutes' % (pretraining_time / 60.))
 
 
-    return mean_epoch_error,norm_epoch_error, mpf_optimizer.W.get_value(borrow= True),mpf_optimizer.b.get_value(borrow= True)
+    return mean_epoch_error, mpf_optimizer.W.get_value(borrow= True),mpf_optimizer.b.get_value(borrow= True)
 
 
 
 if __name__ == '__main__':
 
-    W = np.load('g_weight.npy')
+    W = np.load('gibbs_weight.npy')
     print(W[:10,:10])
-    bias = np.load('g_bias.npy')
+    bias = np.load('gibbs_bias.npy')
     print(bias[:10])
-    samples = 'g_samples.npy'
+    samples = 'gibbs_samples.npy'
 
-    error, norm_error,W_prime,b_prime = check_sanity(W,bias,samples)
+    error,W_prime,b_prime = check_sanity(W,bias,samples)
+
+    print(error[-1])
 
 
     fig1 = plt.figure()
     ax1 = fig1.add_subplot(111)
-    ax1.imshow(W, extent=[0,100,0,1],aspect = 'auto')
-    ax1.set_title('Original W')
+    ax1.set_title('SGD Diff between W and W_prime')
+    plt.imshow(np.abs(W - W_prime), extent=[0,100,0,100],aspect = 'auto')
+    plt.colorbar()
     plt.show()
+    fig1.savefig('0.001_1000_Sgd_Imageseq.png')
 
-    fig2 = plt.figure()
-    ax2 = fig2.add_subplot(111)
-    ax2.imshow(W_prime, extent=[0,100,0,1],aspect = 'auto')
-    ax2.set_title('Learned W')
-    plt.show()
 
-    fig3 = plt.figure()
-    ax3 = fig3.add_subplot(111)
-    ax3.imshow(bias, extent=[0,100,0,1],aspect = 'auto')
-    ax3.set_title('Original b')
-    plt.show()
+    np.save('0.001_1000_sgd_Wprime.npy',W_prime)
 
-    fig4 = plt.figure()
-    ax4 = fig1.add_subplot(111)
-    ax4.imshow(b_prime, extent=[0,100,0,1],aspect = 'auto')
-    ax4.set_title('Learned b')
+    index = np.random.random_integers(low=0,high=10000,size = (100,))
+
+    W1 = W_prime.ravel()
+    W2 = W.ravel()
+    W11 = W1[index]
+    W22 = W2[index]
+
+    fig1 = plt.figure()
+    ax1 = fig1.add_subplot(111)
+    ax1.set_title('SGD: Diff of Randomly 100 Weight')
+    plt.plot(W11,'y')
+    plt.plot(W22,'c')
+    plt.legend(['Recover W', 'Original W'])
     plt.show()
+    fig1.savefig('0.001_1000_Sgd_Random_Diff.png')
+    plt.close()
+
+    ####Final error 0.01#####
+
 
 
 
