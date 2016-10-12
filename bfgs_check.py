@@ -2,6 +2,7 @@
 In this file we implement the l-bfgs version optimization of MPF
 '''
 import numpy as np
+import timeit
 from scipy.optimize import fmin_l_bfgs_b as minimize
 import matplotlib.pyplot as plt
 
@@ -57,10 +58,17 @@ def mpf_bfgs(data,W_init=None,b_init=None,factr=1e7,maxiter=15000,random_state=n
 
 if __name__ == '__main__':
 
+    start_time = timeit.default_timer()
     random_state=np.random.RandomState()
     data = np.load('gibbs_samples.npy')
     W_prime,b_prime,cost,messages = \
                 mpf_bfgs(data,random_state=random_state)
+
+    end_time = timeit.default_timer()
+
+    pretraining_time = (end_time - start_time)
+
+    print ('Training took %f minutes' % (pretraining_time / 60.))
 
     W = np.load('gibbs_weight.npy')
     b = np.load('gibbs_bias.npy')

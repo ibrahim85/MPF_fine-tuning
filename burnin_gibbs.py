@@ -79,18 +79,18 @@ class burnin_gibbs(object):
 if __name__ == '__main__':
 
     samplor = burnin_gibbs()
-    samples = samplor.sample(n_sample=10000)
+    samples = samplor.sample(n_sample=100000)
     weight = samplor.J
     bias = samplor.b
 
-    np.save('gibbs_samples.npy',samples)
+    np.save('gibbs_samples_100000.npy',samples)
 
-    np.save('gibbs_weight.npy', weight)
+    np.save('gibbs_weight_100000.npy', weight)
 
-    np.save('gibbs_bias.npy',bias)
+    np.save('gibbs_bias_100000.npy',bias)
 
 
-    print(np.load('gibbs_weight.npy'))
-    print(np.load('gibbs_bias.npy'))
-    print(np.load('gibbs_samples.npy').shape)
-    print(np.load('gibbs_samples.npy')[:10,:])
+    print(np.load('gibbs_weight_100000.npy'))
+    print(np.load('gibbs_bias_100000.npy'))
+    print(np.load('gibbs_samples_100000.npy').shape)
+    print(np.load('gibbs_samples_100000.npy')[:10,:])

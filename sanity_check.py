@@ -62,7 +62,7 @@ def check_sanity(W,bias,samples):
         on_unused_input='warn',
     )
 
-    training_epochs = 3000
+    training_epochs = 8000
 
     start_time = timeit.default_timer()
 
@@ -88,7 +88,14 @@ def check_sanity(W,bias,samples):
             # norm_batch_error += [np.sum(( W/(np.sum(W**2)) -
             # mpf_optimizer.W.get_value(borrow=True)/(np.sum(mpf_optimizer.W.get_value(borrow=True)**2)) )**2 )]
 
-        mean_epoch_error += [np.mean((mean_batch_error))]
+        mean_epoch_error += [np.mean((mean_batch_error))/10000]
+
+
+
+        if epoch > 2 and mean_epoch_error[-1] < 0.011:
+            print('Ending epoch is %d .' % epoch)
+            break
+
         # norm_epoch_error += [np.mean(np.sqrt(norm_batch_error))]
 
         # print(mean_epoch_error[-1]/10000)
@@ -108,15 +115,15 @@ def check_sanity(W,bias,samples):
 
 if __name__ == '__main__':
 
-    W = np.load('gibbs_weight.npy')
+    W = np.load('gibbs_weight_100000.npy')
     print(W[:10,:10])
-    bias = np.load('gibbs_bias.npy')
+    bias = np.load('gibbs_bias_100000.npy')
     print(bias[:10])
-    samples = 'gibbs_samples.npy'
+    samples = 'gibbs_samples_100000.npy'
 
     error,W_prime,b_prime = check_sanity(W,bias,samples)
 
-    print(error[-1])
+    print(error[-2])
 
 
     fig1 = plt.figure()
@@ -125,10 +132,10 @@ if __name__ == '__main__':
     plt.imshow(np.abs(W - W_prime), extent=[0,100,0,100],aspect = 'auto')
     plt.colorbar()
     plt.show()
-    fig1.savefig('0.001_1000_Sgd_Imageseq.png')
+    fig1.savefig('01_1000_100000_Sgd_Imageseq.png')
 
 
-    np.save('0.001_1000_sgd_Wprime.npy',W_prime)
+    np.save('0.01_1000_100000_sgd_Wprime.npy',W_prime)
 
     index = np.random.random_integers(low=0,high=10000,size = (100,))
 
@@ -144,7 +151,7 @@ if __name__ == '__main__':
     plt.plot(W22,'c')
     plt.legend(['Recover W', 'Original W'])
     plt.show()
-    fig1.savefig('0.001_1000_Sgd_Random_Diff.png')
+    fig1.savefig('01_1000_100000_Sgd_Random_Diff.png')
     plt.close()
 
     ####Final error 0.01#####
