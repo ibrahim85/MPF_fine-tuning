@@ -15,4 +15,3 @@ For running the code, please:
 
 For running the code on GPU machine, please:
 Specify floatX = float32, device = gpu in the .theanorc configuration file. 
-

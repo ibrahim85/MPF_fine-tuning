@@ -64,18 +64,23 @@ plt.close()
 
 #index = np.random.random_integers(low=0,high=10000,size = (100,))
 
-W1 = W_prime.ravel()
-W2 = W.ravel()
+# W1 = W_prime.ravel()
+# W2 = W.ravel()
+#
+# W11 = W1[index]
+# W22 = W2[index]
 
-W11 = W1[index]
-W22 = W2[index]
+b_prime1 = np.load('wb_0.01_1000_sgd_bprime.npy')
+
+print(np.sum(b_prime1-bias)**2)
+print( np.sum(b_prime1-bias)**2 + np.sum(W_prime-W)**2)
 
 fig1 = plt.figure()
 ax1 = fig1.add_subplot(111)
 ax1.set_title('Scaled Diff of Randomly 100 Weight')
-plt.plot(W11,'y')
-plt.plot(W22,'c')
-plt.legend(['Recover W', 'Original W'])
+plt.plot(b_prime1,'y')
+plt.plot(bias,'c')
+plt.legend(['Recover b', 'Original b'])
 plt.show()
 fig1.savefig('Scaled_Random_Diff.png')
 plt.close()

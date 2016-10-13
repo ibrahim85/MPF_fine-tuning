@@ -73,8 +73,15 @@ if __name__ == '__main__':
     W = np.load('gibbs_weight.npy')
     b = np.load('gibbs_bias.npy')
 
-    error = np.sum((W - W_prime)**2)/10000
-    print(error)
+    error = np.sum((W - W_prime)**2)
+
+    error_bias = np.sum((b - b_prime)**2)
+
+    print(error_bias)
+
+    error3 = (error + error_bias)
+
+    print(error3/10000)
 
     W_norm = np.sum(W**2)
     W_prime_norm = np.sum(W_prime**2)

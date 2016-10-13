@@ -17,7 +17,7 @@ def check_sanity(W,bias,samples):
     :return: The square error of the parameters
     '''
     epsilon = 0.01
-    learning_rate = 0.001
+    learning_rate = 0.01
     connect_function = '1-bit-flip'
     num_units = 100
     index = T.lscalar()    # index to a mini batch
@@ -83,22 +83,29 @@ def check_sanity(W,bias,samples):
             weight = mpf_optimizer.W.get_value(borrow = True)
             bia = mpf_optimizer.b.get_value(borrow = True)
 
-            mean_batch_error += [np.sum((W - mpf_optimizer.W.get_value(borrow=True))**2)]
+            error_W = np.sum((W - mpf_optimizer.W.get_value(borrow=True))**2)
+            error_bias = np.sum((bias - mpf_optimizer.b.get_value(borrow= True))**2)
+
+            #print(error_bias)
+
+            error = error_bias + error_W
+
+            mean_batch_error += [error_W/10000]
 
             # norm_batch_error += [np.sum(( W/(np.sum(W**2)) -
             # mpf_optimizer.W.get_value(borrow=True)/(np.sum(mpf_optimizer.W.get_value(borrow=True)**2)) )**2 )]
 
-        mean_epoch_error += [np.mean((mean_batch_error))/10000]
+        mean_epoch_error += [np.mean((mean_batch_error))]
 
 
 
-        if epoch > 2 and mean_epoch_error[-1] < 0.011:
+        if epoch > 2 and mean_epoch_error[-1] > mean_epoch_error[-2]:
             print('Ending epoch is %d .' % epoch)
             break
 
         # norm_epoch_error += [np.mean(np.sqrt(norm_batch_error))]
 
-        # print(mean_epoch_error[-1]/10000)
+        print(mean_epoch_error[-1])
         #
         # print('Training epoch %d, cost is %f' % (epoch, np.mean(mean_cost) ) )
 
@@ -115,11 +122,11 @@ def check_sanity(W,bias,samples):
 
 if __name__ == '__main__':
 
-    W = np.load('gibbs_weight_100000.npy')
+    W = np.load('gibbs_weight.npy')
     print(W[:10,:10])
-    bias = np.load('gibbs_bias_100000.npy')
+    bias = np.load('gibbs_bias.npy')
     print(bias[:10])
-    samples = 'gibbs_samples_100000.npy'
+    samples = 'gibbs_samples.npy'
 
     error,W_prime,b_prime = check_sanity(W,bias,samples)
 
@@ -132,10 +139,11 @@ if __name__ == '__main__':
     plt.imshow(np.abs(W - W_prime), extent=[0,100,0,100],aspect = 'auto')
     plt.colorbar()
     plt.show()
-    fig1.savefig('01_1000_100000_Sgd_Imageseq.png')
+    fig1.savefig('01_1000_Sgd_Imageseq.png')
 
 
-    np.save('0.01_1000_100000_sgd_Wprime.npy',W_prime)
+    np.save('wb_0.01_1000_sgd_Wprime.npy',W_prime)
+    np.save('wb_0.01_1000_sgd_bprime.npy',b_prime)
 
     index = np.random.random_integers(low=0,high=10000,size = (100,))
 
@@ -151,8 +159,21 @@ if __name__ == '__main__':
     plt.plot(W22,'c')
     plt.legend(['Recover W', 'Original W'])
     plt.show()
-    fig1.savefig('01_1000_100000_Sgd_Random_Diff.png')
+    fig1.savefig('01_Sgd_Random_Diff.png')
     plt.close()
+
+
+    fig1 = plt.figure()
+    ax1 = fig1.add_subplot(111)
+    ax1.set_title('SGD: Diff of bias')
+    plt.plot(b_prime,'y')
+    plt.plot(bias,'c')
+    plt.legend(['Recover b', 'Original b'])
+    plt.show()
+    fig1.savefig('01_Sgd_Random_Diff_b.png')
+    plt.close()
+
+    print(np.sum(b_prime-bias)**2)
 
     ####Final error 0.01#####
 
