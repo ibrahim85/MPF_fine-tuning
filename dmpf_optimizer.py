@@ -79,27 +79,26 @@ class MPF_optimizer(object):
         bias_term = T.dot(self.b, data_samples.T)
         return -0.5 * wx_term - bias_term
 
+    # def get_feedfowd_params(self,visible_units,hidden_units):
+    #     # Get the feedforward weights from the big W matrix for MPF
+    #     W_feedfowd = self.W[:visible_units,visible_units:]
+    #
+    #     return W_feedfowd
 
-    def get_cost_updates(self,learning_rate):
 
+    def get_dmpf_cost(self,visible_units, hidden_units, n_samples = 1):
 
-        z = 1/2 - self.input
+        # In one round, we feed forward the and get the samples,
+        # Compute the probability of each data samples,
+        # call the minimum probability flow objective function
 
-        energy_difference = z * (T.dot(self.input,self.W)+ self.b.reshape([1,-1]))
+        W_feedfowd = self.W[:visible_units,visible_units:]
 
-        cost = (self.epsilon/self.batch_sz) * T.sum(T.exp(energy_difference))
+        b_feedfowd = self.b[visible_units:]
 
-        #gparams = T.grad(cost, self.params)
-            # generate the list of updates
-        # updates = [
-        #     (params, params - learning_rate * gparams)
-        #     for params, gparams in zip(self.params, gparams)
-        #     ]
+        H = T.nnet.sigmoid( T.dot(self.input,W_feedfowd) + b_feedfowd)
 
-        #updates = nesterov_momentum(cost, self.params, learning_rate = learning_rate, momentum=0.9)
-        return cost
-
-    def get_dmpf_cost(self,learning_rate):
+        
 
 
         z = 1/2 - self.input
