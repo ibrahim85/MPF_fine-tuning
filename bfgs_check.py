@@ -32,6 +32,7 @@ def costgrad(theta,data,cost_only=False):
     W,b = unravel_params(theta,visible_size)
     d = 1/2-data
     p = np.exp(d*(np.dot(data,W)+b.reshape([1,-1])))
+    print(p.shape)
     cost = np.sum(p)/n_samples
     if cost_only: return cost
     p = d*p

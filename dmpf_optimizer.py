@@ -18,9 +18,10 @@ from theano.tensor.shared_randomstreams import RandomStreams
 
 
 '''Optimizes based on MPF for fully-observable boltzmann machine'''
-class MPF_optimizer(object):
+class dmpf_optimizer(object):
 
-    def __init__(self,epsilon = 1, num_units = 100, W = None, b = None, input = None,batch_sz = 10, connect_function = '1-bit-flip' ):
+    def __init__(self,epsilon = 1, num_units = 100, W = None, b = None,
+                 input = None,batch_sz = 20, theano_rng = None, connect_function = '1-bit-flip' ):
         '''
 
         :param W: the weights of the graph
@@ -33,6 +34,10 @@ class MPF_optimizer(object):
         #b = np.load(b_path)
         self.num_neuron = num_units
         numpy_rng = np.random.RandomState(123456)
+
+        if theano_rng is None:
+            theano_rng = RandomStreams(numpy_rng.randint(2 ** 30))
+        self.theano_rng = theano_rng
 
         if W is None:
             initial_W = np.asarray(numpy_rng.randn(num_units, num_units) / np.sqrt(self.num_neuron) / 100 *
@@ -66,6 +71,10 @@ class MPF_optimizer(object):
 
         self.params = [self.W, self.b]
 
+        self.zero_grad = None
+
+
+
         #self.params = []
 
 
@@ -86,313 +95,68 @@ class MPF_optimizer(object):
     #     return W_feedfowd
 
 
-    def get_dmpf_cost(self,visible_units, hidden_units, n_samples = 1):
+    def get_dmpf_cost(self,visible_units, hidden_units, learning_rate = 0.01, n_samples = 1):
 
         # In one round, we feed forward the and get the samples,
         # Compute the probability of each data samples,
         # call the minimum probability flow objective function
 
+
         W_feedfowd = self.W[:visible_units,visible_units:]
 
         b_feedfowd = self.b[visible_units:]
 
-        H = T.nnet.sigmoid( T.dot(self.input,W_feedfowd) + b_feedfowd)
+        H = T.nnet.sigmoid(T.dot(self.input,W_feedfowd) + b_feedfowd )
 
-        
+        # generate hidden samples
 
+        # srng = RandomStreams(seed=234)
+        # rv_u = srng.binomial(n=1,p = H)
+        # f = theano.function([], rv_u)
+        # hidden_samples = f()
 
+        hidden_samples = self.theano_rng.binomial(size=H.shape,
+                                             n=1, p=H,
+                                             dtype=theano.config.floatX)
+
+        # get the new input data for training MPF
+
+        self.input = T.concatenate((self.input,hidden_samples), axis = 1)
+
+        # compute the weight for each sample
+        sample_prob = theano.shared(value= np.asarray(np.ones(self.batch_sz), dtype=theano.config.floatX), borrow = True)
+        for i in range(visible_units):
+            sample_prob *= H[:,i]
+
+        sample_prob = sample_prob / T.sum(sample_prob)
+
+        # compute the weighted MPF cost
         z = 1/2 - self.input
-
         energy_difference = z * (T.dot(self.input,self.W)+ self.b.reshape([1,-1]))
+        cost = (self.epsilon) * T.sum(T.exp(energy_difference))
 
-        cost = (self.epsilon/self.batch_sz) * T.sum(T.exp(energy_difference))
+        # compute the weighted MPF grad
 
-        return cost
+        W_grad = T.grad(cost, wrt = self.W, consider_constant=[hidden_samples,sample_prob])
 
+        if self.zero_grad is None:
+            a = np.ones((visible_units,hidden_units))
+            b = np.zeros((visible_units,visible_units))
+            c = np.zeros((hidden_units,hidden_units))
+            zero_grad_u = np.concatenate((b,a),axis = 1)
+            zero_grad_d = np.concatenate((a.T,c),axis=1)
+            zero_grad = np.concatenate((zero_grad_u,zero_grad_d),axis=0)
+            self.zero_grad = theano.shared(value=np.asarray(zero_grad,dtype=theano.config.floatX),
+                                           name='zero_grad',borrow = True)
+        W_grad *= self.zero_grad
 
-    def error(self,num_neuron_list,data_x,data_y):
+        b_grad = T.grad(cost=cost, wrt=self.b, consider_constant=[hidden_samples,sample_prob])
 
-        '''
-        This function can feedfoward the current model and get the error predictions.
-
-        :param num_neuron_list: the list of number of neurons in each layer, including the first input layer
-        :param data_x: the input float data
-        :param data_y: the data labels
-        :return: the mean error in classification for all batches
-        '''
-
-        Weight = []
-        bias = []
-        column = num_neuron_list[0]
-        row = 0
-        bias_index = 0
-        for i in range(int(len(num_neuron_list)-1)):
-
-            Weight.append(self.W[row : row + num_neuron_list[i],
-                          column: column + num_neuron_list[i + 1]])
-            bias.append(self.b[bias_index:bias_index + num_neuron_list[i+1]])
-            column += num_neuron_list[i + 1]
-            row += num_neuron_list[i]
-            bias_index += num_neuron_list[i+1]
+        updates = [(self.W, self.W - learning_rate * W_grad),
+                (self.b, self.b - learning_rate * b_grad)]
 
 
-        ## feedforward the neural network and get the softmax output
-        activation = None
-        for i in range( int(len(Weight) -1)):
-            if activation is None:
-                activation =T.nnet.sigmoid(T.dot(data_x,Weight[i]) + bias[i])
-            else:
-                activation = T.nnet.sigmoid(T.dot(activation,Weight[i]) + bias[i])
-
-        self.p_y_given_x =  T.nnet.softmax(T.dot(activation,Weight[-1]) + bias[-1])
-
-        self.y_pred = T.argmax(self.p_y_given_x, axis = 1)
-
-        ## get the prediction accuracy
-
-        if data_y.ndim != self.y_pred.ndim:
-            raise TypeError(
-                'y should have the same shape as self.y_pred',
-                ('y', data_y.type, 'y_pred', self.y_pred.type)
-            )
-        # check if y is of the correct datatype
-        if data_y.dtype.startswith('int'):
-            # the T.neq operator returns a vector of 0s and 1s, where 1
-            # represents a mistake in prediction
-            return T.mean(T.neq(self.y_pred, data_y))
-        else:
-            raise NotImplementedError()
-
-def shared_dataset(data_xy, borrow=True):
-    """ Function that loads the dataset into shared variables
-
-        The reason we store our dataset in shared variables is to allow
-        Theano to copy it into the GPU memory (when code is run on GPU).
-        Since copying data into the GPU is slow, copying a minibatch everytime
-        is needed (the default behaviour if the data is not in a shared
-        variable) would lead to a large decrease in performance.
-    """
-    data_x, data_y = data_xy
-    shared_x = theano.shared(np.asarray(data_x,
-                                               dtype=theano.config.floatX),
-                                 borrow=borrow)
-    shared_y = theano.shared(np.asarray(data_y,
-                                               dtype=theano.config.floatX),
-                                 borrow=borrow)
-        # When storing data on the GPU it has to be stored as floats
-        # therefore we will store the labels as ``floatX`` as well
-        # (``shared_y`` does exactly that). But during our computations
-        # we need them as ints (we use labels as index, and if they are
-        # floats it doesn't make sense) therefore instead of returning
-        # ``shared_y`` we will have to cast it to int. This little hack
-        # lets ous get around this issue
-    return shared_x, T.cast(shared_y, 'int32')
-
-
-def mnist_mpf(data_dict,W=None,b=None, dataset = 'mnist.pkl.gz',
-              num_neuron_list = None,n_samples = 100,epsilon = 0.01,learning_rate = 0.001,
-              n_epochs=1000,batch_sz = 20,mnist = True, connect_function = '1-bit-flip'):
-
-    '''
-
-    :param data_dict: the activation/input dictionary of all the neurons
-    :param W_path: the path of weight matrix
-    :param b_path: path of bias matrix
-    :param epsilon: the step epsilon in MPF
-    :param learning_rate: learning rate in gradient descent
-    :param batch_sz: batch size for SGD
-    :param connect_function: 1-bit-flip, random-flip, or factorize or persistent or continuous
-    :return: the predicted classification rate
-    '''
-
-    ################################################################
-    ################## Loading the Data        #####################
-    ################################################################
-
-    data_path = 'binary_data_samples.npy'
-
-    if not os.path.exists(data_path):
-
-        print('Generating the binary data samples ......')
-
-        data_gen = data_generator(data_dict = data_dict, n_samples = n_samples,savename=data_path)
-
-        data_gen.data_generator(mnist = mnist)
-
-    else:
-
-        print('Binary data samples already exist ......')
-
-    data_samples = np.load(data_path)
-
-    n_train_batches = data_samples.shape[0]//batch_sz
-
-    data_samples  = theano.shared(value=np.asarray(data_samples, dtype=theano.config.floatX),
-                                  name = 'train',borrow = True)
-
-    with gzip.open(dataset, 'rb') as f:
-        try:
-            train_set, valid_set, test_set = pickle.load(f, encoding='bytes')
-        except:
-            train_set, valid_set, test_set = pickle.load(f)
-
-    test_set_x, test_set_y = shared_dataset(test_set)
-    valid_set_x, valid_set_y = shared_dataset(valid_set)
-
-    n_valid_batches = valid_set_x.get_value(borrow=True).shape[0] // batch_sz
-    n_test_batches = test_set_x.get_value(borrow=True).shape[0] // batch_sz
-
-    ################################################################
-    ##################Initialize Train Function#####################
-    ################################################################
-
-    index = T.lscalar()    # index to a mini batch
-    x = T.matrix('x')
-    y = T.ivector('y')
-
-    mpf_optimizer = MPF_optimizer(
-        epsilon = epsilon,
-        W = W,
-        b = b,
-        input = x,
-        batch_sz=batch_sz,
-        connect_function = connect_function
-    )
-
-
-    cost, updates = mpf_optimizer.get_cost_updates(learning_rate= learning_rate)
-
-    train_mpf = theano.function(
-        [index],
-        cost,
-        updates=updates,
-        givens={
-            x: data_samples[index * batch_sz: (index + 1) * batch_sz],
-        },
-        on_unused_input='warn',
-    )
-
-
-    validate_error = mpf_optimizer.error(num_neuron_list=num_neuron_list,data_x= x,data_y=y)
-
-    validate_mpf = theano.function(
-        [index],
-        validate_error,
-        givens={
-            x: valid_set_x[index * batch_sz: (index + 1) * batch_sz],
-            y: valid_set_y[index * batch_sz: (index + 1) * batch_sz]
-        },
-        on_unused_input='warn',
-    )
-
-
-    test_error = mpf_optimizer.error(num_neuron_list=num_neuron_list,data_x = x, data_y = y)
-
-    test_mpf = theano.function(
-        [index],
-        test_error,
-        givens={
-            x: test_set_x[index * batch_sz: (index + 1) * batch_sz],
-            y: test_set_y[index * batch_sz: (index + 1) * batch_sz]
-        },
-        on_unused_input='warn',
-    )
-
-    ################################################################
-    ##################  Training MPF Model     #####################
-    ################################################################
-    print('... training the MPF model')
-    # early-stopping parameters
-    patience = 5000  # look as this many examples regardless
-    patience_increase = 2  # wait this much longer when a new best is
-                                  # found
-    improvement_threshold = 0.995  # a relative improvement of this much is
-                                  # considered significant
-    validation_frequency = min(n_train_batches, patience // 2)
-                                  # go through this many
-                                  # minibatche before checking the network
-                                  # on the validation set; in this case we
-                                  # check every epoch
-
-    best_validation_loss = np.inf
-    test_score = 0.
-    start_time = timeit.default_timer()
-
-    done_looping = False
-    epoch = 0
-    while (epoch < n_epochs) and (not done_looping):
-        epoch = epoch + 1
-        for minibatch_index in range(n_train_batches):
-
-            minibatch_avg_cost = train_mpf(minibatch_index)
-
-            # iteration number
-            iter = (epoch - 1) * n_train_batches + minibatch_index
-
-            if (iter + 1) % validation_frequency == 0:
-                # compute zero-one loss on validation set
-                validation_losses = [validate_mpf(i)
-                                     for i in range(n_valid_batches)]
-                this_validation_loss = np.mean(validation_losses)
-
-                print(
-                    'epoch %i, minibatch %i/%i, validation error %f %%' %
-                    (
-                        epoch,
-                        minibatch_index + 1,
-                        n_train_batches,
-                        this_validation_loss * 100.
-                    )
-                )
-
-                # if we got the best validation score until now
-                if this_validation_loss < best_validation_loss:
-                    #improve patience if loss improvement is good enough
-                    if this_validation_loss < best_validation_loss *  \
-                       improvement_threshold:
-                        patience = max(patience, iter * patience_increase)
-
-                    best_validation_loss = this_validation_loss
-                    # test it on the test set
-
-                    test_losses = [test_mpf(i)
-                                   for i in range(n_test_batches)]
-                    test_score = np.mean(test_losses)
-
-                    print(
-                        (
-                            '     epoch %i, minibatch %i/%i, test error of'
-                            ' best model %f %%'
-                        ) %
-                        (
-                            epoch,
-                            minibatch_index + 1,
-                            n_train_batches,
-                            test_score * 100.
-                        )
-                    )
-
-                    # save the best model
-                    with open('best_model.pkl', 'wb') as f:
-                        pickle.dump(mpf_optimizer, f)
-
-            if patience <= iter:
-                done_looping = True
-                break
-
-    end_time = timeit.default_timer()
-    print(
-        (
-            'Optimization complete with best validation score of %f %%,'
-            'with test performance %f %%'
-        )
-        % (best_validation_loss * 100., test_score * 100.)
-    )
-    print('The fine-tuning run for %d epochs, with %.2fm' % (
-        epoch, (end_time - start_time) / 60))
-    print(('The code for file ' +
-           os.path.split(__file__)[1] +
-           ' ran for %.1fs' % ((end_time - start_time))), file=sys.stderr)
+        return cost, updates
 
 
 
