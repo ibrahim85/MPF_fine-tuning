@@ -100,12 +100,12 @@ def mpf_em(dataset,hidden_units,dynamic=False):
     # Compute the probability of each data samples,
     # call the minimum probability flow objective function
 
-    epsilon = 0.01
-    learning_rate = 0.01
+    epsilon = 0.8
+    learning_rate = 0.08
     connect_function = '1-bit-flip'
     index = T.lscalar()    # index to a mini batch
     x = T.matrix('x')
-    batch_sz = 40
+    batch_sz = 20
 
     mpf_optimizer = dmpf_optimizer(epsilon=epsilon, num_units = num_units, W = W, b = None,
                  input = x,batch_sz =batch_sz)
@@ -129,7 +129,7 @@ def mpf_em(dataset,hidden_units,dynamic=False):
         #on_unused_input='warn',
     )
 
-    training_epochs = 8000
+    training_epochs = 800
 
     start_time = timeit.default_timer()
 
@@ -150,38 +150,43 @@ def mpf_em(dataset,hidden_units,dynamic=False):
             W2 = np.load('rbm_W.npy')
 
             # print(mean_cost)
-            error_W = np.sum((W_init - mpf_optimizer.W.get_value(borrow=True))**2)
-            error_bias = np.sum((bia - mpf_optimizer.b.get_value(borrow= True))**2)
-
-            #print(error_bias)
-
-            error = error_bias + error_W
-
-            mean_batch_error += [error_W/(2*hidden_units*visible_units)]
+            # error_W = np.sum((W_init - mpf_optimizer.W.get_value(borrow=True))**2)
+            # error_bias = np.sum((bia - mpf_optimizer.b.get_value(borrow= True))**2)
+            #
+            # #print(error_bias)
+            #
+            # error = error_bias + error_W
+            #
+            # mean_batch_error += [error_W/(2*hidden_units*visible_units)]
 
             # norm_batch_error += [np.sum(( W/(np.sum(W**2)) -
             # mpf_optimizer.W.get_value(borrow=True)/(np.sum(mpf_optimizer.W.get_value(borrow=True)**2)) )**2 )]
-        # image = Image.fromarray(
-        #     tile_raster_images(
-        #         X=W.T,
-        #         img_shape=(28, 28),
-        #         tile_shape=(10, 10),
-        #         tile_spacing=(1, 1)
-        #     )
-        # )
+
+
+        if epoch %  20 == 0 :
+            image = Image.fromarray(
+            tile_raster_images(
+                X=(mpf_optimizer.W.get_value(borrow = True)[:visible_units,visible_units:]).T,
+                img_shape=(28, 28),
+                tile_shape=(15, 15),
+                tile_spacing=(1, 1)
+            )
+            )
+            image.show()
+            image.save('filters_at_epoch_%i.png' % epoch)
+
+        if (epoch +1) % 100 == 0:
+            learning_rate = learning_rate / 10
+        #mean_epoch_error += [np.mean((mean_batch_error))]
+
+        # print(mean_cost)
+
+        # print(mean_epoch_error[-1])
         #
-        # image.save('filters.png')
-        mean_epoch_error += [np.mean((mean_batch_error))]
-
-        print(mean_epoch_error[-1])
-
-        if epoch > 2 and mean_epoch_error[-1] > mean_epoch_error[-2]:
-            print('Ending epoch is %d .' % epoch)
-            break
-
+        # if epoch > 2 and mean_epoch_error[-1] > mean_epoch_error[-2]:
+        #     print('Ending epoch is %d .' % epoch)
+        #     break
         # norm_epoch_error += [np.mean(np.sqrt(norm_batch_error))]
-
-
         #
         # print('Training epoch %d, cost is %f' % (epoch, np.mean(mean_cost) ) )
 
@@ -191,16 +196,97 @@ def mpf_em(dataset,hidden_units,dynamic=False):
 
     print ('Training took %f minutes' % (pretraining_time / 60.))
 
-    return mpf_optimizer.W.get_value(borrow = True)
+
+    ################################################################
+    ##################  Sampling               #####################
+    ################################################################
+
+    n_chains = 20
+    n_samples = 10
+    rng = np.random.RandomState(123)
+    test_set_x = test_set[0]
+    number_of_test_samples = test_set_x.shape[0]
+    test_set_x = theano.shared( value = np.asarray(test_set_x, dtype=theano.config.floatX),name = 'test', borrow = True)
+
+    # pick random test examples, with which to initialize the persistent chain
+    test_idx = rng.randint(number_of_test_samples - n_chains)
+    persistent_vis_chain = theano.shared(
+        np.asarray(
+            test_set_x.get_value(borrow=True)[test_idx:test_idx + n_chains],
+            dtype=theano.config.floatX
+        )
+    )
+    # end-snippet-6 start-snippet-7
+    plot_every = 1000
+    # define one step of Gibbs sampling (mf = mean-field) define a
+    # function that does `plot_every` steps before returning the
+    # sample for plotting
+    (
+        [
+            presig_hids,
+            hid_mfs,
+            hid_samples,
+            presig_vis,
+            vis_mfs,
+            vis_samples
+        ],
+        updates
+    ) = theano.scan(
+        mpf_optimizer.gibbs_vhv,
+        outputs_info=[None, None, None, None, None, persistent_vis_chain],
+        n_steps=plot_every
+    )
+
+    # add to updates the shared variable that takes care of our persistent
+    # chain :.
+    updates.update({persistent_vis_chain: vis_samples[-1]})
+    # construct the function that implements our persistent chain.
+    # we generate the "mean field" activations for plotting and the actual
+    # samples for reinitializing the state of our persistent chain
+    sample_fn = theano.function(
+        [],
+        [
+            vis_mfs[-1],
+            vis_samples[-1]
+        ],
+        updates=updates,
+        name='sample_fn'
+    )
+
+    # create a space to store the image for plotting ( we need to leave
+    # room for the tile_spacing as well)
+    image_data = np.zeros(
+        (29 * n_samples + 1, 29 * n_chains - 1),
+        dtype='uint8'
+    )
+    for idx in range(n_samples):
+        # generate `plot_every` intermediate samples that we discard,
+        # because successive samples in the chain are too correlated
+        vis_mf, vis_sample = sample_fn()
+        print(' ... plotting sample ', idx)
+        image_data[29 * idx:29 * idx + 28, :] = tile_raster_images(
+            X=vis_mf,
+            img_shape=(28, 28),
+            tile_shape=(1, n_chains),
+            tile_spacing=(1, 1)
+        )
+
+    # construct image
+    image = Image.fromarray(image_data)
+    image.save('samples.png')
+    # end-snippet-7
+    os.chdir('../')
+
+    return mpf_optimizer.W.get_value(borrow = True), mpf_optimizer.b.get_value(borrow = True)
 
 
 if __name__ == '__main__':
 
-    filter = mpf_em(hidden_units=200, dataset= None)
+    W, b = mpf_em(hidden_units=400, dataset= None)
 
 
     test_image = tile_raster_images(
-        X=filter.T,
+        X=W.T,
         img_shape=(28, 28),
         tile_shape=(10, 10),
         tile_spacing=(1, 1)
@@ -209,6 +295,8 @@ if __name__ == '__main__':
     image = Image.fromarray(test_image)
 
     image.save('filters.png')
+
+
 
 
 

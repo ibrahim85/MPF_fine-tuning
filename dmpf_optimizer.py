@@ -21,7 +21,7 @@ from theano.tensor.shared_randomstreams import RandomStreams
 class dmpf_optimizer(object):
 
     def __init__(self,epsilon = 1, num_units = 100, W = None, b = None,
-                 input = None,batch_sz = 20, theano_rng = None, connect_function = '1-bit-flip' ):
+                 input = None,explicit_EM = False, batch_sz = 20, theano_rng = None, connect_function = '1-bit-flip' ):
         '''
 
         :param W: the weights of the graph
@@ -72,9 +72,7 @@ class dmpf_optimizer(object):
         self.params = [self.W, self.b]
 
         self.zero_grad = None
-
-
-
+        self.explicit_EM = explicit_EM
         #self.params = []
 
 
@@ -95,45 +93,48 @@ class dmpf_optimizer(object):
     #     return W_feedfowd
 
 
-    def get_dmpf_cost(self,visible_units, hidden_units, learning_rate = 0.01, n_samples = 1):
+    def get_dmpf_cost(self,visible_units, hidden_units, learning_rate = 0.01, n_samples = 1, sample_prob = None):
 
         # In one round, we feed forward the and get the samples,
         # Compute the probability of each data samples,
         # call the minimum probability flow objective function
 
+        if not self.explicit_EM:
+            self.visible_units = visible_units
+            self.hidden_units = hidden_units
 
-        W_feedfowd = self.W[:visible_units,visible_units:]
+            W_feedfowd = self.W[:visible_units,visible_units:]
 
-        b_feedfowd = self.b[visible_units:]
+            b_feedfowd = self.b[visible_units:]
 
-        H = T.nnet.sigmoid(T.dot(self.input,W_feedfowd) + b_feedfowd )
+            H = T.nnet.sigmoid(T.dot(self.input,W_feedfowd) + b_feedfowd )
 
-        # generate hidden samples
+            # generate hidden samples
 
-        # srng = RandomStreams(seed=234)
-        # rv_u = srng.binomial(n=1,p = H)
-        # f = theano.function([], rv_u)
-        # hidden_samples = f()
+            # srng = RandomStreams(seed=234)
+            # rv_u = srng.binomial(n=1,p = H)
+            # f = theano.function([], rv_u)
+            # hidden_samples = f()
 
-        hidden_samples = self.theano_rng.binomial(size=H.shape,
-                                             n=1, p=H,
-                                             dtype=theano.config.floatX)
+            hidden_samples = self.theano_rng.binomial(size=H.shape,
+                                                 n=1, p=H,
+                                                 dtype=theano.config.floatX)
 
-        # get the new input data for training MPF
+            # get the new input data for training MPF
 
-        self.input = T.concatenate((self.input,hidden_samples), axis = 1)
+            self.input = T.concatenate((self.input,hidden_samples), axis = 1)
 
-        # compute the weight for each sample
-        sample_prob = theano.shared(value= np.asarray(np.ones(self.batch_sz), dtype=theano.config.floatX), borrow = True)
-        for i in range(visible_units):
-            sample_prob *= H[:,i]
+            # compute the weight for each sample
+            sample_prob = theano.shared(value= np.asarray(np.ones(self.batch_sz), dtype=theano.config.floatX), borrow = True)
+            for i in range(visible_units):
+                sample_prob *= H[:,i]
 
-        sample_prob = sample_prob / T.sum(sample_prob)
+            sample_prob = sample_prob / T.sum(sample_prob)
 
         # compute the weighted MPF cost
         z = 1/2 - self.input
         energy_difference = z * (T.dot(self.input,self.W)+ self.b.reshape([1,-1]))
-        cost = (self.epsilon) * T.sum(T.exp(energy_difference))
+        cost = (self.epsilon/self.batch_sz) * T.sum(T.exp(energy_difference))
 
         # compute the weighted MPF grad
 
@@ -157,6 +158,82 @@ class dmpf_optimizer(object):
 
 
         return cost, updates
+
+
+    def propup(self, vis):
+        '''This function propagates the visible units activation upwards to
+        the hidden units
+
+        Note that we return also the pre-sigmoid activation of the
+        layer. As it will turn out later, due to how Theano deals with
+        optimizations, this symbolic variable will be needed to write
+        down a more stable computational graph (see details in the
+        reconstruction cost function)
+
+        '''
+        pre_sigmoid_activation = T.dot(vis, self.W[:self.visible_units,self.visible_units:]) \
+                                 + self.b[self.visible_units:]
+        return [pre_sigmoid_activation, T.nnet.sigmoid(pre_sigmoid_activation)]
+
+    def sample_h_given_v(self, v0_sample):
+        ''' This function infers state of hidden units given visible units '''
+        # compute the activation of the hidden units given a sample of
+        # the visibles
+        pre_sigmoid_h1, h1_mean = self.propup(v0_sample)
+        # get a sample of the hiddens given their activation
+        # Note that theano_rng.binomial returns a symbolic sample of dtype
+        # int64 by default. If we want to keep our computations in floatX
+        # for the GPU we need to specify to return the dtype floatX
+        h1_sample = self.theano_rng.binomial(size=h1_mean.shape,
+                                             n=1, p=h1_mean,
+                                             dtype=theano.config.floatX)
+        return [pre_sigmoid_h1, h1_mean, h1_sample]
+
+    def propdown(self, hid):
+        '''This function propagates the hidden units activation downwards to
+        the visible units
+
+        Note that we return also the pre_sigmoid_activation of the
+        layer. As it will turn out later, due to how Theano deals with
+        optimizations, this symbolic variable will be needed to write
+        down a more stable computational graph (see details in the
+        reconstruction cost function)
+
+        '''
+        pre_sigmoid_activation = T.dot(hid, self.W[:self.visible_units,self.visible_units:].T) \
+                                 + self.b[:self.visible_units]
+        return [pre_sigmoid_activation, T.nnet.sigmoid(pre_sigmoid_activation)]
+
+    def sample_v_given_h(self, h0_sample):
+        ''' This function infers state of visible units given hidden units '''
+        # compute the activation of the visible given the hidden sample
+        pre_sigmoid_v1, v1_mean = self.propdown(h0_sample)
+        # get a sample of the visible given their activation
+        # Note that theano_rng.binomial returns a symbolic sample of dtype
+        # int64 by default. If we want to keep our computations in floatX
+        # for the GPU we need to specify to return the dtype floatX
+        v1_sample = self.theano_rng.binomial(size=v1_mean.shape,
+                                             n=1, p=v1_mean,
+                                             dtype=theano.config.floatX)
+        return [pre_sigmoid_v1, v1_mean, v1_sample]
+
+    def gibbs_hvh(self, h0_sample):
+        ''' This function implements one step of Gibbs sampling,
+            starting from the hidden state
+            Thin function would be useful for performing CD and PCD'''
+        pre_sigmoid_v1, v1_mean, v1_sample = self.sample_v_given_h(h0_sample)
+        pre_sigmoid_h1, h1_mean, h1_sample = self.sample_h_given_v(v1_sample)
+        return [pre_sigmoid_v1, v1_mean, v1_sample,
+                pre_sigmoid_h1, h1_mean, h1_sample]
+
+    def gibbs_vhv(self, v0_sample):
+        ''' This function implements one step of Gibbs sampling,
+            starting from the visible state
+            This function would be useful for sampling from the RBM'''
+        pre_sigmoid_h1, h1_mean, h1_sample = self.sample_h_given_v(v0_sample)
+        pre_sigmoid_v1, v1_mean, v1_sample = self.sample_v_given_h(h1_sample)
+        return [pre_sigmoid_h1, h1_mean, h1_sample,
+                pre_sigmoid_v1, v1_mean, v1_sample]
 
 
 
