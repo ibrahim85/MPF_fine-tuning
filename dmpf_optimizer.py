@@ -99,9 +99,11 @@ class dmpf_optimizer(object):
         # Compute the probability of each data samples,
         # call the minimum probability flow objective function
 
+        self.visible_units = visible_units
+        self.hidden_units = hidden_units
+
         if not self.explicit_EM:
-            self.visible_units = visible_units
-            self.hidden_units = hidden_units
+
 
             W_feedfowd = self.W[:visible_units,visible_units:]
 
@@ -138,7 +140,12 @@ class dmpf_optimizer(object):
 
         # compute the weighted MPF grad
 
-        W_grad = T.grad(cost, wrt = self.W, consider_constant=[hidden_samples,sample_prob])
+        if not self.explicit_EM:
+            W_grad = T.grad(cost, wrt = self.W, consider_constant=[hidden_samples,sample_prob])
+            b_grad = T.grad(cost=cost, wrt=self.b, consider_constant=[hidden_samples,sample_prob])
+        else:
+            W_grad = T.grad(cost, wrt = self.W)
+            b_grad = T.grad(cost=cost, wrt=self.b)
 
         if self.zero_grad is None:
             a = np.ones((visible_units,hidden_units))
@@ -151,13 +158,11 @@ class dmpf_optimizer(object):
                                            name='zero_grad',borrow = True)
         W_grad *= self.zero_grad
 
-        b_grad = T.grad(cost=cost, wrt=self.b, consider_constant=[hidden_samples,sample_prob])
-
         updates = [(self.W, self.W - learning_rate * W_grad),
                 (self.b, self.b - learning_rate * b_grad)]
 
 
-        return cost, updates
+        return cost,updates
 
 
     def propup(self, vis):
