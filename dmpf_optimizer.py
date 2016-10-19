@@ -153,6 +153,9 @@ class dmpf_optimizer(object):
 
             self.input = T.concatenate((self.input,hidden_samples), axis = 1)
 
+            self.sample_prob = T.prod(activation[1], axis = 1)
+            self.sample_prob = self.sample_prob / T.sum(self.sample_prob)
+
             # compute the weight for each sample
             # self.sample_prob = theano.shared(value= np.asarray(np.ones(self.batch_sz), dtype=theano.config.floatX), borrow = True)
             # for i in range(visible_units):
@@ -163,14 +166,14 @@ class dmpf_optimizer(object):
         # compute the weighted MPF cost
             z = 1/2 - self.input
             energy_difference = z * (T.dot(self.input,self.W)+ self.b.reshape([1,-1]))
-            # self.sample_prob = self.sample_prob.reshape((1,-1)).T
-            # k = theano.shared(value= (np.asarray(np.ones(self.hidden_units),dtype=theano.config.floatX)).reshape((1,-1)))
-            # self.sample_prob = self.sample_prob * k
-            cost = (self.epsilon/self.batch_sz) * T.sum(T.exp(energy_difference))
+            self.sample_prob = self.sample_prob.reshape((1,-1)).T
+            k = theano.shared(value= (np.asarray(np.ones(self.hidden_units),dtype=theano.config.floatX)).reshape((1,-1)))
+            self.sample_prob = self.sample_prob * k
+            cost = (self.epsilon/self.batch_sz) * T.sum(T.exp(energy_difference)*self.sample_prob)
 
         # compute the weighted MPF grad
-            W_grad = T.grad(cost=cost, wrt = self.W,consider_constant=[hidden_samples])
-            b_grad = T.grad(cost=cost, wrt=self.b,consider_constant=[hidden_samples])
+            W_grad = T.grad(cost=cost, wrt = self.W,consider_constant=[activation[1],activation[2]])
+            b_grad = T.grad(cost=cost, wrt=self.b,consider_constant=[activation[1],activation[2]])
 
 
         else:
