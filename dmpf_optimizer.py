@@ -15,6 +15,9 @@ from weighted_data_generator import *
 import os.path
 from lasagne.updates import nesterov_momentum
 from theano.tensor.shared_randomstreams import RandomStreams
+import sys
+import copy
+sys.setrecursionlimit(40000)
 
 
 '''Optimizes based on MPF for fully-observable boltzmann machine'''
@@ -102,51 +105,6 @@ class dmpf_optimizer(object):
         self.visible_units = visible_units
         self.hidden_units = hidden_units
 
-        if not self.explicit_EM:
-
-
-            W_feedfowd = self.W[:visible_units,visible_units:]
-
-            b_feedfowd = self.b[visible_units:]
-
-            H = T.nnet.sigmoid(T.dot(self.input,W_feedfowd) + b_feedfowd )
-
-            # generate hidden samples
-
-            # srng = RandomStreams(seed=234)
-            # rv_u = srng.binomial(n=1,p = H)
-            # f = theano.function([], rv_u)
-            # hidden_samples = f()
-
-            hidden_samples = self.theano_rng.binomial(size=H.shape,
-                                                 n=1, p=H,
-                                                 dtype=theano.config.floatX)
-
-            # get the new input data for training MPF
-
-            self.input = T.concatenate((self.input,hidden_samples), axis = 1)
-
-            # compute the weight for each sample
-            sample_prob = theano.shared(value= np.asarray(np.ones(self.batch_sz), dtype=theano.config.floatX), borrow = True)
-            for i in range(visible_units):
-                sample_prob *= H[:,i]
-
-            sample_prob = sample_prob / T.sum(sample_prob)
-
-        # compute the weighted MPF cost
-        z = 1/2 - self.input
-        energy_difference = z * (T.dot(self.input,self.W)+ self.b.reshape([1,-1]))
-        cost = (self.epsilon/self.batch_sz) * T.sum(T.exp(energy_difference))
-
-        # compute the weighted MPF grad
-
-        if not self.explicit_EM:
-            W_grad = T.grad(cost, wrt = self.W, consider_constant=[hidden_samples,sample_prob])
-            b_grad = T.grad(cost=cost, wrt=self.b, consider_constant=[hidden_samples,sample_prob])
-        else:
-            W_grad = T.grad(cost, wrt = self.W)
-            b_grad = T.grad(cost=cost, wrt=self.b)
-
         if self.zero_grad is None:
             a = np.ones((visible_units,hidden_units))
             b = np.zeros((visible_units,visible_units))
@@ -156,13 +114,82 @@ class dmpf_optimizer(object):
             zero_grad = np.concatenate((zero_grad_u,zero_grad_d),axis=0)
             self.zero_grad = theano.shared(value=np.asarray(zero_grad,dtype=theano.config.floatX),
                                            name='zero_grad',borrow = True)
+
+        if not self.explicit_EM:
+
+            # W_init = self.W.get_value(borrow = True)
+            # b_init = self.b.get_value(borrow = True)
+            # W_feed = copy.deepcopy(W_init)
+            # b_feed = copy.deepcopy(b_init)
+            #
+            # W_feedfowd = W_feed[:visible_units,visible_units:]
+            #
+            # b_feedfowd=  b_feed[visible_units:]
+            #
+            # print(W_feed[1,784:800])
+            # print(W_feedfowd[1,:16])
+            #
+            # W_feedfowd = theano.shared(value=W_feedfowd)
+            # b_feedfowd = theano.shared(value=b_feedfowd)
+            #
+            # W_feedfowd = self.W[:visible_units,visible_units:]
+            # b_feedfowd = self.b[visible_units:]
+            # verify_W = W_feedfowd.get_value(borrow = True)
+            # verify_diff = (verify_W - W_feedd)
+            # print(verify_diff)
+
+            # H = T.nnet.sigmoid(T.dot(self.input,W_feedfowd) + b_feedfowd )
+
+
+            # generate hidden samples
+
+            # hidden_samples = self.theano_rng.binomial(size=H.shape,
+            #                                      n=1, p=H,
+            #                                      dtype=theano.config.floatX)
+            activation = self.gibbs_vhv(v0_sample=self.input)
+            hidden_samples = activation[2]
+
+            # get the new input data for training MPF
+
+            self.input = T.concatenate((self.input,hidden_samples), axis = 1)
+
+            # compute the weight for each sample
+            # self.sample_prob = theano.shared(value= np.asarray(np.ones(self.batch_sz), dtype=theano.config.floatX), borrow = True)
+            # for i in range(visible_units):
+            #     self.sample_prob *= H[:,i]
+            #
+            # self.sample_prob = self.sample_prob / T.sum(self.sample_prob)
+
+        # compute the weighted MPF cost
+            z = 1/2 - self.input
+            energy_difference = z * (T.dot(self.input,self.W)+ self.b.reshape([1,-1]))
+            # self.sample_prob = self.sample_prob.reshape((1,-1)).T
+            # k = theano.shared(value= (np.asarray(np.ones(self.hidden_units),dtype=theano.config.floatX)).reshape((1,-1)))
+            # self.sample_prob = self.sample_prob * k
+            cost = (self.epsilon/self.batch_sz) * T.sum(T.exp(energy_difference))
+
+        # compute the weighted MPF grad
+            W_grad = T.grad(cost=cost, wrt = self.W,consider_constant=[hidden_samples])
+            b_grad = T.grad(cost=cost, wrt=self.b,consider_constant=[hidden_samples])
+
+
+        else:
+            z = 1/2 - self.input
+            energy_difference = z * (T.dot(self.input,self.W)+ self.b.reshape([1,-1]))
+            #sample_prob = T.tile(sample_prob,(self.hidden_units,1)).T
+            cost = (self.epsilon/self.batch_sz) * T.sum(T.exp(energy_difference))
+
+            W_grad = T.grad(cost = cost, wrt = self.W)
+            b_grad = T.grad(cost=cost, wrt=self.b)
+
+
         W_grad *= self.zero_grad
 
         updates = [(self.W, self.W - learning_rate * W_grad),
                 (self.b, self.b - learning_rate * b_grad)]
 
 
-        return cost,updates
+        return W_grad[0,784:790],updates
 
 
     def propup(self, vis):

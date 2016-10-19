@@ -14,6 +14,7 @@ import Image
 import copy
 import os
 from deepMPF import get_mpf_params
+from display_network import displayNetwork
 
 from utils import tile_raster_images
 
@@ -62,6 +63,9 @@ def em_mpf(hidden_units,learning_rate, epsilon, batch_sz = 20, dataset = None):
 
     binarizer = preprocessing.Binarizer(threshold=0.5)
     data =  binarizer.transform(train_set[0])
+    displayNetwork(data[:100,:])
+    # Binarize the mnist data doesnot hurt much to the input data.
+    # displayNetwork(train_set[0][:100,:])
 
 
     ################################################################
@@ -120,6 +124,8 @@ def em_mpf(hidden_units,learning_rate, epsilon, batch_sz = 20, dataset = None):
         for mpf_epoch in range(in_epoch):
             mean_cost = []
             for batch_index in range(n_train_batches):
+                weight = mpf_optimizer.W.get_value(borrow = True)
+                bia = mpf_optimizer.b.get_value(borrow = True)
 
                 mean_cost += [train_mpf(batch_index)]
 
@@ -163,7 +169,7 @@ def em_mpf(hidden_units,learning_rate, epsilon, batch_sz = 20, dataset = None):
         deviation = np.sum((W - W_init)**2)/(2*visible_units*hidden_units)
         print(deviation)
 
-        if deviation < 1e-5:
+        if em_epoch % 10 == 0:
             n_chains = 20
             n_samples = 10
             rng = np.random.RandomState(123)
@@ -237,11 +243,9 @@ def em_mpf(hidden_units,learning_rate, epsilon, batch_sz = 20, dataset = None):
 
             # construct image
             image = Image.fromarray(image_data)
-            image.save('samples.png')
+            image.save('samples_%i.png' % em_epoch)
             # end-snippet-7
-            os.chdir('../')
-            break
-
+            # os.chdir('../')
 
     end_time = timeit.default_timer()
 

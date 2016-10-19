@@ -86,8 +86,7 @@ def mpf_em(dataset,hidden_units,dynamic=False):
 
     num_units = visible_units + hidden_units
 
-    W_init = get_mpf_params(visible_units,hidden_units)
-    W = copy.deepcopy(W_init)
+    W = get_mpf_params(visible_units,hidden_units)
 
     # np.save('rbm_W.npy',W)
     # bias can be intialized in the MPF_optimizer class
@@ -101,7 +100,7 @@ def mpf_em(dataset,hidden_units,dynamic=False):
     # call the minimum probability flow objective function
 
     epsilon = 0.8
-    learning_rate = 0.08
+    learning_rate = 0.1
     connect_function = '1-bit-flip'
     index = T.lscalar()    # index to a mini batch
     x = T.matrix('x')
@@ -129,7 +128,7 @@ def mpf_em(dataset,hidden_units,dynamic=False):
         #on_unused_input='warn',
     )
 
-    training_epochs = 800
+    training_epochs = 200
 
     start_time = timeit.default_timer()
 
@@ -147,8 +146,6 @@ def mpf_em(dataset,hidden_units,dynamic=False):
             weight = mpf_optimizer.W.get_value(borrow = True)
             bia = mpf_optimizer.b.get_value(borrow = True)
             mean_cost += [train_mpf(batch_index)]
-            W2 = np.load('rbm_W.npy')
-
             # print(mean_cost)
             # error_W = np.sum((W_init - mpf_optimizer.W.get_value(borrow=True))**2)
             # error_bias = np.sum((bia - mpf_optimizer.b.get_value(borrow= True))**2)
@@ -163,7 +160,7 @@ def mpf_em(dataset,hidden_units,dynamic=False):
             # mpf_optimizer.W.get_value(borrow=True)/(np.sum(mpf_optimizer.W.get_value(borrow=True)**2)) )**2 )]
 
 
-        if epoch %  20 == 0 :
+        if epoch %  2 == 0 :
             image = Image.fromarray(
             tile_raster_images(
                 X=(mpf_optimizer.W.get_value(borrow = True)[:visible_units,visible_units:]).T,
@@ -282,7 +279,7 @@ def mpf_em(dataset,hidden_units,dynamic=False):
 
 if __name__ == '__main__':
 
-    W, b = mpf_em(hidden_units=400, dataset= None)
+    W, b = mpf_em(hidden_units=300, dataset= None)
 
 
     test_image = tile_raster_images(
