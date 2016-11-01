@@ -99,7 +99,7 @@ def mpf_em(dataset,hidden_units,dynamic=False):
     # Compute the probability of each data samples,
     # call the minimum probability flow objective function
 
-    epsilon = 0.8
+    epsilon = 0.01
     learning_rate = 0.1
     connect_function = '1-bit-flip'
     index = T.lscalar()    # index to a mini batch
@@ -128,7 +128,7 @@ def mpf_em(dataset,hidden_units,dynamic=False):
         #on_unused_input='warn',
     )
 
-    training_epochs = 200
+    training_epochs = 300
 
     start_time = timeit.default_timer()
 
@@ -160,7 +160,7 @@ def mpf_em(dataset,hidden_units,dynamic=False):
             # mpf_optimizer.W.get_value(borrow=True)/(np.sum(mpf_optimizer.W.get_value(borrow=True)**2)) )**2 )]
 
 
-        if epoch %  2 == 0 :
+        if epoch % 10 == 0 :
             image = Image.fromarray(
             tile_raster_images(
                 X=(mpf_optimizer.W.get_value(borrow = True)[:visible_units,visible_units:]).T,
@@ -169,6 +169,8 @@ def mpf_em(dataset,hidden_units,dynamic=False):
                 tile_spacing=(1, 1)
             )
             )
+            np.save('W_epoch_'+str(epoch)+'.npy',
+                    (mpf_optimizer.W.get_value(borrow = True)[:visible_units,visible_units:]).T)
             image.show()
             image.save('filters_at_epoch_%i.png' % epoch)
 
@@ -203,7 +205,8 @@ def mpf_em(dataset,hidden_units,dynamic=False):
     rng = np.random.RandomState(123)
     test_set_x = test_set[0]
     number_of_test_samples = test_set_x.shape[0]
-    test_set_x = theano.shared( value = np.asarray(test_set_x, dtype=theano.config.floatX),name = 'test', borrow = True)
+    test_set_x = theano.shared( value = np.asarray(test_set_x,
+                                                   dtype=theano.config.floatX),name = 'test', borrow = True)
 
     # pick random test examples, with which to initialize the persistent chain
     test_idx = rng.randint(number_of_test_samples - n_chains)

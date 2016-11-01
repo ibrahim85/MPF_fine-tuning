@@ -146,7 +146,7 @@ class dmpf_optimizer(object):
             # hidden_samples = self.theano_rng.binomial(size=H.shape,
             #                                      n=1, p=H,
             #                                      dtype=theano.config.floatX)
-            activation = self.gibbs_vhv(v0_sample=self.input)
+            activation = self.sample_h_given_v(v0_sample=self.input)
             hidden_samples = activation[2]
 
             # get the new input data for training MPF
@@ -167,9 +167,9 @@ class dmpf_optimizer(object):
             z = 1/2 - self.input
             energy_difference = z * (T.dot(self.input,self.W)+ self.b.reshape([1,-1]))
             self.sample_prob = self.sample_prob.reshape((1,-1)).T
-            k = theano.shared(value= (np.asarray(np.ones(self.hidden_units),dtype=theano.config.floatX)).reshape((1,-1)))
-            self.sample_prob = self.sample_prob * k
-            cost = (self.epsilon/self.batch_sz) * T.sum(T.exp(energy_difference)*self.sample_prob)
+            k = theano.shared(value= (np.asarray(np.ones(self.num_neuron),dtype=theano.config.floatX)).reshape((1,-1)))
+            self.sample_prob = T.dot(self.sample_prob, k)
+            cost = (self.epsilon) * T.sum(T.exp(energy_difference)*self.sample_prob)
 
         # compute the weighted MPF grad
             W_grad = T.grad(cost=cost, wrt = self.W,consider_constant=[activation[1],activation[2]])
@@ -192,7 +192,7 @@ class dmpf_optimizer(object):
                 (self.b, self.b - learning_rate * b_grad)]
 
 
-        return W_grad[0,784:790],updates
+        return cost,updates
 
 
     def propup(self, vis):
