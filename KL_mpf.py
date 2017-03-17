@@ -39,7 +39,7 @@ def normalizeData(patches):
     patches = (patches+1)*0.4+0.1
     return patches
 
-class np_dmpf_optimizer(object):
+class KL_dmpf_optimizer(object):
 
     def __init__(self, vis_units, hid_units,epsilon, batch_sz = 20):
 
@@ -78,29 +78,32 @@ class np_dmpf_optimizer(object):
         data = None
         norm_sample_prob = None
 
+        #rho = []
+
         for i in range(n_samples):
             prop = self.propup(data_samples=data_samples)
             activations = prop[0]
             hidden_samples = prop[1]
             new_data = np.concatenate((data_samples,hidden_samples),axis=1)
 
-            probality = (1 - hidden_samples) * (1-activations) + hidden_samples * activations
-            new_sample_prob = np.prod(probality, axis = 1)
+            probability = (1 - hidden_samples) * (1-activations) + hidden_samples * activations
+            new_sample_prob = np.prod(probability, axis = 1)
 
             if data is None:
                 data = new_data
                 sample_prob = new_sample_prob
                 norm_sample_prob = new_sample_prob
-
+               # rho = activations
             else:
                 data = np.concatenate((data,new_data),axis = 0)
                 sample_prob = np.concatenate((sample_prob,new_sample_prob))
                 norm_sample_prob += new_sample_prob
+                #rho = np.concatenate((rho,activations),axis = 0)
 
         norm_sample_prob = np.tile(norm_sample_prob,reps=n_samples)
         sample_prob = sample_prob / norm_sample_prob
 
-        return sample_prob, data
+        return sample_prob, data, #rho
 
 
     def get_cost_updates(self, theta, data, sample_prob, epsilon ):
@@ -124,14 +127,52 @@ class np_dmpf_optimizer(object):
 
         cost = (self.epsilon/self.batch_sz) * np.sum(np.exp(energy_difference)* sample_prob)
 
+        # compute the KL-divergence and gradient
+
+        raw_samples = data[:,:self.visible_units]
+        activations = self.propup(raw_samples)[0]
+        rho = np.mean(activations,axis=0)
+        sparsityParam = 0.1
+        beta = 4
+        KL = beta*((-sparsityParam/rho) + ((1 - sparsityParam)/(1 - rho)))
+
+        KL_b_grad = KL*activations*(1-activations)
+
+        KL_grad = np.dot(raw_samples.T, KL_b_grad)
+
+        cost_kl = beta*np.sum(sparsityParam*np.log(sparsityParam/rho)+
+                              (1 - sparsityParam)*np.log((1 - sparsityParam)/(1 - rho)))
+
+        a = np.zeros((self.visible_units,self.visible_units))
+        b = np.zeros((self.hidden_units,self.hidden_units))
+        kl_grad1 = np.concatenate((a, KL_grad),axis=1)
+        kl_grad2 = np.concatenate((KL_grad.T, b),axis=1)
+        kl_grad = np.concatenate((kl_grad1,kl_grad2),axis=0)
+
+
+       ###  add  decay weight  #############
+        # decay = 0.0001
+        # cost_weight = 0.5 * decay * np.sum(self.W**2)
+        #
+        # grad_decay = decay*self.W
         # computing the gradient
+
+        cost += cost_kl
+
+        #cost += cost_weight
+
         h = z * np.exp(energy_difference) * sample_prob
 
         bgrad = np.mean(h,axis=0)*self.epsilon
         Wgrad = (np.dot(h.T,data)+np.dot(data.T,h))*self.epsilon/self.batch_sz
 
+
         #np.fill_diagonal(Wgrad,0)
         Wgrad *= self.zero_grad
+
+        Wgrad += (kl_grad/self.batch_sz)
+        #Wgrad += grad_decay
+        bgrad[self.visible_units:] += np.mean(KL_b_grad,axis=0)
 
         grad = ravel_params(Wgrad,bgrad)
 
@@ -193,7 +234,7 @@ def load_mnist(dataset = None):
 def load_IMAGE():
 
     Images = np.load('IMAGES.npy')
-    num_patches = 50000
+    num_patches = 10000
     patch_size = 8
     patches = np.zeros((num_patches,patch_size*patch_size))
 
@@ -215,65 +256,71 @@ def load_IMAGE():
 
 def train_bfgs_rbm(epsilon,n_samples,epoches):
 
-    vis_units = 64
-    hid_units = 25
+    vis_units = 784
+    hid_units = 100
     epsilon = epsilon
     learning_rate = 0.01
     n_samples = n_samples
 
-    path = '../Grid_Patches_filters/num_samples_' + str(n_samples)
+    path = '../Grid_MNIST_filters/num_samples_' + str(n_samples)
     if not os.path.exists(path):
         os.makedirs(path)
-    # W = np.load('rbm_weight_10000.npy')
-    # #print(W.shape)
-    #
+
+
+
+    #  # ###### Check Gradient #############################################
     # rbm_data = np.load('rbm_samples_10000.npy')
     # print(rbm_data.shape)
-
-
-
-    patches = load_IMAGE()
-
-    print(patches[0,:])
-
-    mpf_optimizer = np_dmpf_optimizer(vis_units = vis_units, hid_units= hid_units, epsilon = epsilon)
-
-
-    ###### Check Gradient ######
-    theta = ravel_params(mpf_optimizer.W, mpf_optimizer.b)
-
-    sample_prob, data = mpf_optimizer.get_samples(theta=theta, data_samples = patches, n_samples = n_samples)
-
-
-    #numpy_rng = np.random.RandomState(555555)
-    # W = numpy_rng.randn(20,20)/np.sqrt(20*20)
-    # W = (W + W.T)/2
-    # np.fill_diagonal(W,0)
-    # b = np.zeros((20,1))
-    # theta = ravel_params(W, b)
+    # mpf_optimizer = KL_dmpf_optimizer(vis_units = vis_units, hid_units= hid_units, epsilon = epsilon)
+    # theta = ravel_params(mpf_optimizer.W, mpf_optimizer.b)
+    # sample_prob, data = mpf_optimizer.get_samples(theta=theta, data_samples = rbm_data, n_samples = n_samples)
+    #
+    #
+    # # numpy_rng = np.random.RandomState(555555)
+    # # W = numpy_rng.randn(20,20)/np.sqrt(20*20)
+    # # W = (W + W.T)/2
+    # # np.fill_diagonal(W,0)
+    # # b = np.zeros((20,1))
+    # # theta = ravel_params(W, b)
     # numgrad = computeNumericalGradient(lambda x: mpf_optimizer.get_cost_updates(
-    #     x, data, sample_prob)[0],theta)
-    # cost, grad = mpf_optimizer.get_cost_updates(theta,data, sample_prob)
+    #     x, data, sample_prob,epsilon)[0],theta)
+    # cost, grad = mpf_optimizer.get_cost_updates(theta,data, sample_prob,epsilon)
     # # Use this to visually compare the gradients side by side
     # print(np.array([numgrad,grad]).T)
     # # Compare numerically computed gradients with the ones obtained from backpropagation
     # diff = norm(numgrad-grad)/norm(numgrad+grad)
     # print(diff)
     # print('diff is computed')
+    ###########################################################
 
 
-    ######  Run the MPF ######
 
-    ## We first try the MPF with l-bfgs algorithms
+
+
+    #patches = load_IMAGE()
+    patches = load_mnist()
+
+    #print(patches[0,:])
+
+    mpf_optimizer = KL_dmpf_optimizer(vis_units = vis_units, hid_units= hid_units, epsilon = epsilon)
+
+    theta = ravel_params(mpf_optimizer.W, mpf_optimizer.b)
+
+    sample_prob, data = mpf_optimizer.get_samples(theta=theta, data_samples = patches, n_samples = n_samples)
+
+
+    #####  Run the MPF ######
+
+    # We first try the MPF with l-bfgs algorithms
 
     opttheta,cost,messages = minimize(mpf_optimizer.get_cost_updates,theta,fprime=None,maxiter=400,
-                                     args=(data, sample_prob))
+                                     args=(data, sample_prob,epsilon))
 
     for i in range(epoches):
         theta = opttheta
         sample_prob, data = mpf_optimizer.get_samples(theta= theta, data_samples = patches, n_samples=n_samples)
         opttheta,cost,messages = minimize(mpf_optimizer.get_cost_updates,theta,fprime=None,maxiter=400,
-                                         args=(data, sample_prob))
+                                         args=(data, sample_prob,epsilon))
 
         W1,b1 = unravel_params(opttheta,visible_size= vis_units+hid_units)
         W1 = W1[:vis_units,vis_units:]
@@ -337,7 +384,7 @@ if __name__ == '__main__':
     #     for n_samples in range(10):
     #         train_bfgs_rbm(epsilon= epsilon,  n_samples= n_samples+2 , epoches=20 )
 
-    train_bfgs_rbm(epsilon= 0.1,  n_samples= 5, epoches=10)
+    train_bfgs_rbm(epsilon= 0.01,  n_samples= 1, epoches=20)
 
 
 

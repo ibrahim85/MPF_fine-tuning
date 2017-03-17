@@ -9,6 +9,7 @@ Step 5: Sanity check, conduct generating tasks
 
 
 from dmpf_optimizer import *
+from free_energy_dmpf import *
 from sklearn import preprocessing
 import numpy as np
 import gzip
@@ -21,36 +22,6 @@ import os
 from free_energy_dmpf import *
 
 from utils import tile_raster_images
-
-
-
-def get_mpf_params(visible_units, hidden_units):
-
-    '''
-    :param visible_units: number of units in the visible layer
-    :param hidden_units: number of units ni the hidden layer
-    :return: The well structured MPF weight matrix
-    The MPF weight matrix is of the form:
-    [0,   W,
-     W.T, 0]
-    '''
-    numpy_rng = np.random.RandomState(555555)
-
-    W = numpy_rng.randn(visible_units,hidden_units)/np.sqrt(visible_units*hidden_units)
-
-   # W = np.random.uniform(low=-1, high=1,size = (visible_units,hidden_units))
-
-    W_up = np.concatenate((np.zeros((visible_units,visible_units)), W), axis = 1)
-
-    W_down = np.concatenate((W.T,np.zeros((hidden_units,hidden_units))), axis = 1 )
-
-    W = np.concatenate((W_up,W_down), axis = 0)
-
-    print(W.shape)
-
-    return W
-
-
 
 def mpf_em(dataset,hidden_units,dynamic=False):
 
@@ -72,7 +43,8 @@ def mpf_em(dataset,hidden_units,dynamic=False):
 
 
     binarizer = preprocessing.Binarizer(threshold=0.5)
-    data =  binarizer.transform(train_set[0])
+    data =  binarizer.transform(train_set[0][0:10000,:])
+    print(data.shape)
     # k = data[:1,:]
     # print(k)
     # print(train_set[0][:1,:])
@@ -89,8 +61,6 @@ def mpf_em(dataset,hidden_units,dynamic=False):
 
     num_units = visible_units + hidden_units
 
-    W = get_mpf_params(visible_units, hidden_units)
-
     # np.save('rbm_W.npy',W)
     # bias can be intialized in the MPF_optimizer class
 
@@ -102,23 +72,21 @@ def mpf_em(dataset,hidden_units,dynamic=False):
     # Compute the probability of each data samples,
     # call the minimum probability flow objective function
 
-    epsilon = 0.01
-    learning_rate = 0.002
+    epsilon = 0.05
+    learning_rate = 0.05
     index = T.lscalar()    # index to a mini batch
     x = T.matrix('x')
     batch_sz = 20
 
-    mpf_optimizer = dmpf_optimizer(epsilon=epsilon, num_units = num_units, W = W, b = None,
+    mpf_optimizer = free_energy_dmpf_optimizer(epsilon=epsilon, visible_units= visible_units, hidden_units= hidden_units,
                  input = x,batch_sz =batch_sz)
-
 
     n_train_batches = data.shape[0]//batch_sz
 
     data  = theano.shared(value=np.asarray(data, dtype=theano.config.floatX),
                                   name = 'train',borrow = True)
 
-    cost,updates = mpf_optimizer.get_dmpf_cost(learning_rate= learning_rate,
-                                               visible_units=visible_units,hidden_units=hidden_units)
+    cost,updates = mpf_optimizer.get_cost_updates(learning_rate= learning_rate)
 
     train_mpf = theano.function(
         [index],
@@ -130,7 +98,7 @@ def mpf_em(dataset,hidden_units,dynamic=False):
         #on_unused_input='warn',
     )
 
-    training_epochs = 200
+    training_epochs = 50
 
     start_time = timeit.default_timer()
 
@@ -145,8 +113,8 @@ def mpf_em(dataset,hidden_units,dynamic=False):
 
 
         for batch_index in range(n_train_batches):
-            weight = mpf_optimizer.W.get_value(borrow = True)
-            bia = mpf_optimizer.b.get_value(borrow = True)
+            # weight = mpf_optimizer.W.get_value(borrow = True)
+            # bia = mpf_optimizer.b.get_value(borrow = True)
             mean_cost += [train_mpf(batch_index)]
 
         mean_epoch_error += [np.mean(mean_cost)]
@@ -168,7 +136,7 @@ def mpf_em(dataset,hidden_units,dynamic=False):
         if epoch % 5 == 0 :
             image = Image.fromarray(
             tile_raster_images(
-                X=(mpf_optimizer.W.get_value(borrow = True)[:visible_units,visible_units:]).T,
+                X=(mpf_optimizer.W.get_value(borrow = True)).T,
                 img_shape=(28, 28),
                 tile_shape=(15, 15),
                 tile_spacing=(1, 1)

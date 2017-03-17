@@ -18,6 +18,7 @@ import theano.tensor as T
 import Image
 import copy
 import os
+from free_energy_dmpf import *
 
 from utils import tile_raster_images
 
@@ -33,9 +34,11 @@ def get_mpf_params(visible_units, hidden_units):
     [0,   W,
      W.T, 0]
     '''
-    numpy_rng = np.random.RandomState(3333)
+    numpy_rng = np.random.RandomState(555555)
 
-    W = numpy_rng.randn(visible_units, hidden_units) / np.sqrt(visible_units + hidden_units) / 100
+    W = numpy_rng.randn(visible_units,hidden_units)/np.sqrt(visible_units*hidden_units)
+
+   # W = np.random.uniform(low=-1, high=1,size = (visible_units,hidden_units))
 
     W_up = np.concatenate((np.zeros((visible_units,visible_units)), W), axis = 1)
 
@@ -86,7 +89,7 @@ def mpf_em(dataset,hidden_units,dynamic=False):
 
     num_units = visible_units + hidden_units
 
-    W = get_mpf_params(visible_units,hidden_units)
+    W = get_mpf_params(visible_units, hidden_units)
 
     # np.save('rbm_W.npy',W)
     # bias can be intialized in the MPF_optimizer class
@@ -100,8 +103,7 @@ def mpf_em(dataset,hidden_units,dynamic=False):
     # call the minimum probability flow objective function
 
     epsilon = 0.01
-    learning_rate = 0.1
-    connect_function = '1-bit-flip'
+    learning_rate = 0.002
     index = T.lscalar()    # index to a mini batch
     x = T.matrix('x')
     batch_sz = 20
@@ -128,7 +130,7 @@ def mpf_em(dataset,hidden_units,dynamic=False):
         #on_unused_input='warn',
     )
 
-    training_epochs = 300
+    training_epochs = 200
 
     start_time = timeit.default_timer()
 
@@ -146,6 +148,9 @@ def mpf_em(dataset,hidden_units,dynamic=False):
             weight = mpf_optimizer.W.get_value(borrow = True)
             bia = mpf_optimizer.b.get_value(borrow = True)
             mean_cost += [train_mpf(batch_index)]
+
+        mean_epoch_error += [np.mean(mean_cost)]
+        print('The cost for dmpf in epoch %d is %f'% (epoch,np.mean(mean_cost)))
             # print(mean_cost)
             # error_W = np.sum((W_init - mpf_optimizer.W.get_value(borrow=True))**2)
             # error_bias = np.sum((bia - mpf_optimizer.b.get_value(borrow= True))**2)
@@ -160,7 +165,7 @@ def mpf_em(dataset,hidden_units,dynamic=False):
             # mpf_optimizer.W.get_value(borrow=True)/(np.sum(mpf_optimizer.W.get_value(borrow=True)**2)) )**2 )]
 
 
-        if epoch % 10 == 0 :
+        if epoch % 5 == 0 :
             image = Image.fromarray(
             tile_raster_images(
                 X=(mpf_optimizer.W.get_value(borrow = True)[:visible_units,visible_units:]).T,
@@ -174,8 +179,8 @@ def mpf_em(dataset,hidden_units,dynamic=False):
             image.show()
             image.save('filters_at_epoch_%i.png' % epoch)
 
-        if (epoch +1) % 100 == 0:
-            learning_rate = learning_rate / 10
+        # if (epoch +1) % 100 == 0:
+        #     learning_rate = learning_rate / 10
         #mean_epoch_error += [np.mean((mean_batch_error))]
 
         # print(mean_cost)

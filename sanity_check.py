@@ -22,7 +22,7 @@ def check_sanity(W,bias,samples):
     num_units = 100
     index = T.lscalar()    # index to a mini batch
     x = T.matrix('x')
-    batch_sz = 40
+    batch_sz = 20
 
     mpf_optimizer = MPF_optimizer(
         epsilon = epsilon,
@@ -31,21 +31,25 @@ def check_sanity(W,bias,samples):
         batch_sz=batch_sz,
         )
 
-    data_samples = np.load(samples)
+    data_samples = np.load(samples)[0:50000,:]
 
     n_train_batches = data_samples.shape[0]//batch_sz
 
     data_samples  = theano.shared(value=np.asarray(data_samples, dtype=theano.config.floatX),
                                   name = 'train',borrow = True)
 
-    cost = mpf_optimizer.get_cost_updates(learning_rate= learning_rate)
+    cost= mpf_optimizer.get_cost_updates(learning_rate= learning_rate)
 
     g_W = T.grad(cost=cost, wrt=mpf_optimizer.W)
 
-    zero_dig = theano.shared(np.asarray((np.ones((num_units,num_units)) - np.identity(num_units)),
-                dtype=theano.config.floatX) , name = 'zero_dig', borrow = True)
+    #zero_dig = theano.shared(np.asarray((np.ones((num_units,num_units)) - np.identity(num_units)),
+    #            dtype=theano.config.floatX) , name = 'zero_dig', borrow = True)
 
-    g_W = g_W * zero_dig
+    #g_W = g_W * zero_dig
+
+    g_W = T.extra_ops.fill_diagonal(g_W, 0)
+
+    # g_W = (g_W + g_W.T)/2
 
     g_b = T.grad(cost=cost, wrt=mpf_optimizer.b)
 
@@ -62,7 +66,7 @@ def check_sanity(W,bias,samples):
         on_unused_input='warn',
     )
 
-    training_epochs = 8000
+    training_epochs = 2000
 
     start_time = timeit.default_timer()
 
@@ -90,7 +94,7 @@ def check_sanity(W,bias,samples):
 
             error = error_bias + error_W
 
-            mean_batch_error += [error_W/10000]
+            mean_batch_error += [error_W/(num_units*num_units)]
 
             # norm_batch_error += [np.sum(( W/(np.sum(W**2)) -
             # mpf_optimizer.W.get_value(borrow=True)/(np.sum(mpf_optimizer.W.get_value(borrow=True)**2)) )**2 )]
@@ -99,11 +103,11 @@ def check_sanity(W,bias,samples):
 
 
 
-        if epoch > 2 and mean_epoch_error[-1] > mean_epoch_error[-2]:
-            print('Ending epoch is %d .' % epoch)
-            break
+        # if epoch > 2 and mean_epoch_error[-1] > mean_epoch_error[-2]:
+        #     print('Ending epoch is %d .' % epoch)
+        #     break
 
-        # norm_epoch_error += [np.mean(np.sqrt(norm_batch_error))]
+        norm_epoch_error += [np.mean(np.sqrt(norm_batch_error))]
 
         print(mean_epoch_error[-1])
         #
@@ -122,11 +126,11 @@ def check_sanity(W,bias,samples):
 
 if __name__ == '__main__':
 
-    W = np.load('gibbs_weight.npy')
+    W = np.load('gibbs_weight_50000.npy')
     print(W[:10,:10])
-    bias = np.load('gibbs_bias.npy')
+    bias = np.load('gibbs_bias_50000.npy')
     print(bias[:10])
-    samples = 'gibbs_samples.npy'
+    samples = 'gibbs_samples_50000.npy'
 
     error,W_prime,b_prime = check_sanity(W,bias,samples)
 
@@ -145,7 +149,7 @@ if __name__ == '__main__':
     np.save('wb_0.01_1000_sgd_Wprime.npy',W_prime)
     np.save('wb_0.01_1000_sgd_bprime.npy',b_prime)
 
-    index = np.random.random_integers(low=0,high=10000,size = (100,))
+    index = np.random.random_integers(low=0,high=9999,size = (100,))
 
     W1 = W_prime.ravel()
     W2 = W.ravel()

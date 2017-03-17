@@ -14,6 +14,7 @@ from data_generator import *
 from weighted_data_generator import *
 import os.path
 from lasagne.updates import nesterov_momentum
+from lasagne.updates import adam, rmsprop
 from theano.tensor.shared_randomstreams import RandomStreams
 import sys
 import copy
@@ -36,7 +37,7 @@ class dmpf_optimizer(object):
         #W = np.load(W_path)
         #b = np.load(b_path)
         self.num_neuron = num_units
-        numpy_rng = np.random.RandomState(123456)
+        numpy_rng = np.random.RandomState(1233456)
 
         if theano_rng is None:
             theano_rng = RandomStreams(numpy_rng.randint(2 ** 30))
@@ -96,11 +97,13 @@ class dmpf_optimizer(object):
     #     return W_feedfowd
 
 
-    def get_dmpf_cost(self,visible_units, hidden_units, learning_rate = 0.01, n_samples = 1, sample_prob = None):
+    def get_dmpf_cost(self,visible_units, hidden_units, num_samples = 10,
+                      learning_rate = 0.01, n_samples = 1, sample_prob = None):
 
         # In one round, we feed forward the and get the samples,
         # Compute the probability of each data samples,
         # call the minimum probability flow objective function
+
 
         self.visible_units = visible_units
         self.hidden_units = hidden_units
@@ -117,70 +120,93 @@ class dmpf_optimizer(object):
 
         if not self.explicit_EM:
 
-            # W_init = self.W.get_value(borrow = True)
-            # b_init = self.b.get_value(borrow = True)
-            # W_feed = copy.deepcopy(W_init)
-            # b_feed = copy.deepcopy(b_init)
-            #
-            # W_feedfowd = W_feed[:visible_units,visible_units:]
-            #
-            # b_feedfowd=  b_feed[visible_units:]
-            #
-            # print(W_feed[1,784:800])
-            # print(W_feedfowd[1,:16])
-            #
-            # W_feedfowd = theano.shared(value=W_feedfowd)
-            # b_feedfowd = theano.shared(value=b_feedfowd)
-            #
-            # W_feedfowd = self.W[:visible_units,visible_units:]
-            # b_feedfowd = self.b[visible_units:]
-            # verify_W = W_feedfowd.get_value(borrow = True)
-            # verify_diff = (verify_W - W_feedd)
-            # print(verify_diff)
-
-            # H = T.nnet.sigmoid(T.dot(self.input,W_feedfowd) + b_feedfowd )
-
-
-            # generate hidden samples
-
-            # hidden_samples = self.theano_rng.binomial(size=H.shape,
-            #                                      n=1, p=H,
-            #                                      dtype=theano.config.floatX)
+            ####################### one sample MPF ##############################
+            ##############################################################
             activation = self.sample_h_given_v(v0_sample=self.input)
             hidden_samples = activation[2]
-
-            # get the new input data for training MPF
-
-            self.input = T.concatenate((self.input,hidden_samples), axis = 1)
+            self.input = T.concatenate((self.input, hidden_samples),axis = 1)
 
             self.sample_prob = T.prod(activation[1], axis = 1)
             self.sample_prob = self.sample_prob / T.sum(self.sample_prob)
 
-            # compute the weight for each sample
-            # self.sample_prob = theano.shared(value= np.asarray(np.ones(self.batch_sz), dtype=theano.config.floatX), borrow = True)
-            # for i in range(visible_units):
-            #     self.sample_prob *= H[:,i]
-            #
-            # self.sample_prob = self.sample_prob / T.sum(self.sample_prob)
-
-        # compute the weighted MPF cost
             z = 1/2 - self.input
             energy_difference = z * (T.dot(self.input,self.W)+ self.b.reshape([1,-1]))
+
+            # self.sample_prob = self.sample_prob.reshape((1,-1)).T
+            # k = theano.shared(value= (np.asarray(np.ones(self.num_neuron),dtype=theano.config.floatX)).reshape((1,-1)))
+            # self.sample_prob = T.dot(self.sample_prob, k)
+            #cost = (self.epsilon) * T.sum(T.exp(energy_difference)*self.sample_prob)
+            cost = (self.epsilon/self.batch_sz) * T.sum(T.exp(energy_difference))
+            W_grad = T.grad(cost=cost, wrt = self.W,consider_constant=[self.input])
+            b_grad = T.grad(cost=cost, wrt=self.b,consider_constant=[self.input])
+            # W_grad *= self.zero_grad
+            # g_params = [W_grad, b_grad]
+            # updates = adam(g_params, self.params, learning_rate=0.01, beta1=0.9, beta2=0.999, epsilon=1e-08)
+            #############################################################
+
+
+            # ############# many samples mpf ###################################
+            # self.new_input = None
+            # self.sample_prob = None
+            # norm_sample_prob = None
+            #
+            # for i in range(num_samples):
+            #     activation = self.sample_h_given_v(v0_sample=self.input)
+            #     hidden_samples = activation[2]
+            #     new_input = T.concatenate((self.input, hidden_samples),axis = 1)
+            #
+            #     # compute the probability of each sample
+            #
+            #     sample_prob = (1 - hidden_samples) * (1-activation[1]) + hidden_samples * activation[1]
+            #     new_sample_prob = T.prod(sample_prob, axis = 1)
+            #
+            #
+            #     if self.new_input is None:
+            #         self.new_input = new_input
+            #         self.sample_prob = new_sample_prob
+            #         norm_sample_prob = new_sample_prob
+            #     else:
+            #         self.new_input = T.concatenate((self.new_input,new_input),axis =0)
+            #         self.sample_prob = T.concatenate((self.sample_prob,new_sample_prob))
+            #         norm_sample_prob += new_sample_prob
+            #
+            # norm_sample_prob = T.tile(norm_sample_prob,reps=[num_samples])
+            # self.sample_prob = self.sample_prob/norm_sample_prob
+            #
+            # z = 1/2 - self.new_input
+            # energy_difference = z * (T.dot(self.new_input,self.W)+ self.b.reshape([1,-1]))
+            #
+            # self.sample_prob = self.sample_prob.reshape((1,-1)).T
+            #
+            # k = theano.shared(value= (np.asarray(np.ones(self.num_neuron),dtype=theano.config.floatX)).reshape((1,-1)))
+            # self.sample_prob = T.dot(self.sample_prob, k)
+            #
+            # cost = (self.epsilon/self.batch_sz) * T.sum(T.exp(energy_difference)*self.sample_prob)
+            #
+            # W_grad = T.grad(cost=cost, wrt = self.W,consider_constant=[self.new_input,self.sample_prob])
+            # b_grad = T.grad(cost=cost, wrt=self.b,consider_constant=[self.new_input, self.sample_prob])
+
+            # W_grad *= self.zero_grad
+            # g_params = [W_grad, b_grad]
+            # updates = adam(g_params, self.params, learning_rate=0.01, beta1=0.9, beta2=0.999, epsilon=1e-08)
+            #
+
+            # ##############################################################
+
+        else:
+
+            self.sample_prob = sample_prob
+
+            self.sample_prob = self.sample_prob/T.sum(self.sample_prob)
+
+            z = 1/2 - self.input
+            energy_difference = z * (T.dot(self.input,self.W)+ self.b.reshape([1,-1]))
+
             self.sample_prob = self.sample_prob.reshape((1,-1)).T
             k = theano.shared(value= (np.asarray(np.ones(self.num_neuron),dtype=theano.config.floatX)).reshape((1,-1)))
             self.sample_prob = T.dot(self.sample_prob, k)
+
             cost = (self.epsilon) * T.sum(T.exp(energy_difference)*self.sample_prob)
-
-        # compute the weighted MPF grad
-            W_grad = T.grad(cost=cost, wrt = self.W,consider_constant=[activation[1],activation[2]])
-            b_grad = T.grad(cost=cost, wrt=self.b,consider_constant=[activation[1],activation[2]])
-
-
-        else:
-            z = 1/2 - self.input
-            energy_difference = z * (T.dot(self.input,self.W)+ self.b.reshape([1,-1]))
-            #sample_prob = T.tile(sample_prob,(self.hidden_units,1)).T
-            cost = (self.epsilon/self.batch_sz) * T.sum(T.exp(energy_difference))
 
             W_grad = T.grad(cost = cost, wrt = self.W)
             b_grad = T.grad(cost=cost, wrt=self.b)
@@ -192,7 +218,7 @@ class dmpf_optimizer(object):
                 (self.b, self.b - learning_rate * b_grad)]
 
 
-        return cost,updates
+        return cost, updates
 
 
     def propup(self, vis):

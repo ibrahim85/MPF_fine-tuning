@@ -154,7 +154,10 @@ class gibbs_sample(object):
 
 if __name__ == '__main__':
 
-    gibbs_samplor = gibbs_sample()
+
+    # Generating samples
+
+    gibbs_samplor = gibbs_sample(num_units=100)
 
     train_samples = gibbs_samplor.gibbs_sample(step = 10, n_samples=10000)
 
@@ -164,9 +167,6 @@ if __name__ == '__main__':
 
     np.save('g_bias.npy',gibbs_samplor.b)
 
-
-    # print(np.load('gibbs_weight.npy').shape)
-    # print(np.load('gibbs_bias.npy'))
     print(np.load('g_samples.npy').shape)
     print(np.load('g_samples.npy')[:10,:])
 

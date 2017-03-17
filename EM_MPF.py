@@ -34,9 +34,7 @@ def propup(data,W,b):
 
 def get_sample_prob(activations):
 
-    prob = np.ones(shape=(activations.shape[0]))
-    for i in range(activations.shape[1]):
-        prob *= activations[:,i]
+    prob = np.prod(activations,axis=1)
     prob = prob / np.sum(prob)
 
     return prob
@@ -63,7 +61,7 @@ def em_mpf(hidden_units,learning_rate, epsilon, batch_sz = 20, dataset = None):
 
     binarizer = preprocessing.Binarizer(threshold=0.5)
     data =  binarizer.transform(train_set[0])
-    displayNetwork(data[:100,:])
+    #displayNetwork(data[:100,:])
     # Binarize the mnist data doesnot hurt much to the input data.
     # displayNetwork(train_set[0][:100,:])
 
@@ -79,12 +77,12 @@ def em_mpf(hidden_units,learning_rate, epsilon, batch_sz = 20, dataset = None):
 
     num_units = visible_units + hidden_units
 
-    W = get_mpf_params(visible_units,hidden_units)
+    W = get_mpf_params(visible_units, hidden_units)
 
     b = np.zeros(num_units)
 
-    out_epoch = 1000
-    in_epoch = 11
+    out_epoch = 100
+    in_epoch = 500
 
 
     start_time = timeit.default_timer()
@@ -98,24 +96,41 @@ def em_mpf(hidden_units,learning_rate, epsilon, batch_sz = 20, dataset = None):
         prop_b = b[visible_units:]
         activations, new_data = propup(data,prop_W,prop_b)
 
+        sample_prob = get_sample_prob(activations) # This is a vector, each entry stands for the probability of
+        #the respected sample
+
         index = T.lscalar()    # index to a mini batch
         x = T.matrix('x')
+        y = T.vector('y')
 
 
-        mpf_optimizer = dmpf_optimizer(epsilon=epsilon, explicit_EM= True,num_units = num_units, W = W, b = b,
-                 input = x,batch_sz =batch_sz)
+        mpf_optimizer = dmpf_optimizer(
+            epsilon=epsilon,
+            explicit_EM= True,
+            num_units = num_units,
+            W = W,
+            b = b,
+            input = x,
+            batch_sz =batch_sz)
 
         new_data  = theano.shared(value=np.asarray(new_data, dtype=theano.config.floatX),
                                   name = 'train',borrow = True)
+        sample_prob = theano.shared(value = np.asarray(sample_prob, dtype= theano.config.floatX),
+                                    name='prob',borrow = True)
 
-        cost,updates = mpf_optimizer.get_dmpf_cost(learning_rate= learning_rate,
-                                               visible_units=visible_units,hidden_units=hidden_units)
+        cost,updates = mpf_optimizer.get_dmpf_cost(
+            learning_rate= learning_rate,
+            visible_units=visible_units,
+            hidden_units=hidden_units,
+            sample_prob=y)
+
         train_mpf = theano.function(
             [index],
             cost,
             updates=updates,
             givens={
             x: new_data[index * batch_sz: (index + 1) * batch_sz],
+            y: sample_prob[index * batch_sz: (index + 1) * batch_sz]
         },
         #on_unused_input='warn',
         )
@@ -133,7 +148,7 @@ def em_mpf(hidden_units,learning_rate, epsilon, batch_sz = 20, dataset = None):
             print('The cost for inner mpf in epoch %d is %f'% (mpf_epoch,np.mean(mean_cost)))
 
 
-            if mpf_epoch % 10 == 0:
+            if mpf_epoch > 0 and mpf_epoch % 50 == 0:
                 image = Image.fromarray(
                     tile_raster_images(
                     X=(mpf_optimizer.W.get_value(borrow = True)[:visible_units,visible_units:]).T,
@@ -143,7 +158,7 @@ def em_mpf(hidden_units,learning_rate, epsilon, batch_sz = 20, dataset = None):
                     )
                     )
                 image.show()
-                image.save('filters_at_epoch_%i_%i.png' % (em_epoch,mpf_epoch))
+                image.save('EM_mpf_filters_at_epoch_%i_%i.png' % (em_epoch,mpf_epoch))
 
 
             if mpf_epoch > 2 and mean_epoch_error[-1] > mean_epoch_error[-2]:
@@ -160,7 +175,7 @@ def em_mpf(hidden_units,learning_rate, epsilon, batch_sz = 20, dataset = None):
                     )
                     )
         image.show()
-        image.save('filters_at_epoch_%i.png' % (em_epoch))
+        image.save('EM_mpf_filters_at_epoch_%i.png' % (em_epoch))
 
 
         W = mpf_optimizer.W.get_value(borrow = True)
@@ -169,7 +184,7 @@ def em_mpf(hidden_units,learning_rate, epsilon, batch_sz = 20, dataset = None):
         deviation = np.sum((W - W_init)**2)/(2*visible_units*hidden_units)
         print(deviation)
 
-        if em_epoch % 10 == 0:
+        if em_epoch % 2 == 0:
             n_chains = 20
             n_samples = 10
             rng = np.random.RandomState(123)
@@ -257,7 +272,7 @@ def em_mpf(hidden_units,learning_rate, epsilon, batch_sz = 20, dataset = None):
 if __name__ == '__main__':
 
 
-    em_mpf(hidden_units = 200,learning_rate = 0.01, epsilon = 0.01)
+    em_mpf(hidden_units = 200,learning_rate = 0.01, epsilon = 0.1)
 
 
 

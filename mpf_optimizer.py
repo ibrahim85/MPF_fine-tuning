@@ -10,8 +10,6 @@ import timeit, pickle, sys, math
 import theano
 import theano.tensor as T
 import os
-from data_generator import *
-from weighted_data_generator import *
 import os.path
 from lasagne.updates import nesterov_momentum
 from theano.tensor.shared_randomstreams import RandomStreams
@@ -35,7 +33,7 @@ class MPF_optimizer(object):
         numpy_rng = np.random.RandomState(123456)
 
         if W is None:
-            initial_W = np.asarray(numpy_rng.randn(num_units, num_units) / np.sqrt(self.num_neuron) / 100 *
+            initial_W = np.asarray(numpy_rng.randn(num_units, num_units) / np.sqrt(self.num_neuron) / 16 *
                                    (np.ones((num_units,num_units)) - np.identity(num_units)),
                 dtype=theano.config.floatX
             )
@@ -89,8 +87,13 @@ class MPF_optimizer(object):
 
         cost = (self.epsilon/self.batch_sz) * T.sum(T.exp(energy_difference))
 
-        #gparams = T.grad(cost, self.params)
-            # generate the list of updates
+        # gparams = T.grad(cost, self.params)
+        #
+        # gparams[0] = T.extra_ops.fill_diagonal(gparams[0],0)
+        #
+        # gparams[0] = gparams[0] + gparams[0].T
+        #
+        #     #generate the list of updates
         # updates = [
         #     (params, params - learning_rate * gparams)
         #     for params, gparams in zip(self.params, gparams)
