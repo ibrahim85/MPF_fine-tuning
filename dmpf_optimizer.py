@@ -10,11 +10,8 @@ import timeit, pickle, sys, math
 import theano
 import theano.tensor as T
 import os
-from data_generator import *
 from weighted_data_generator import *
 import os.path
-from lasagne.updates import nesterov_momentum
-from lasagne.updates import adam, rmsprop
 from theano.tensor.shared_randomstreams import RandomStreams
 import sys
 import copy

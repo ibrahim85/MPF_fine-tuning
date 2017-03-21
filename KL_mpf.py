@@ -10,6 +10,7 @@ from scipy.optimize import fmin_l_bfgs_b as minimize
 from SparseAutoencoder_minst import displayNetwork as display
 from sklearn import preprocessing
 
+from np_sgd_mpf import *
 
 def unravel_params(theta,visible_size):
     W = theta[0:visible_size*visible_size].reshape(visible_size,visible_size)
@@ -106,7 +107,7 @@ class KL_dmpf_optimizer(object):
         return sample_prob, data, #rho
 
 
-    def get_cost_updates(self, theta, data, sample_prob, epsilon ):
+    def get_cost_updates(self, theta, data, sample_prob, epsilon, sparsityParam =0.1, beta =0 ):
 
 
          # computing the cost and gradient
@@ -132,8 +133,7 @@ class KL_dmpf_optimizer(object):
         raw_samples = data[:,:self.visible_units]
         activations = self.propup(raw_samples)[0]
         rho = np.mean(activations,axis=0)
-        sparsityParam = 0.1
-        beta = 4
+
         KL = beta*((-sparsityParam/rho) + ((1 - sparsityParam)/(1 - rho)))
 
         KL_b_grad = KL*activations*(1-activations)
@@ -256,13 +256,14 @@ def load_IMAGE():
 
 def train_bfgs_rbm(epsilon,n_samples,epoches):
 
-    vis_units = 784
-    hid_units = 100
+    vis_units = 64
+    hid_units = 16
+    beta = 3
+    sparsity = 0.1
     epsilon = epsilon
-    learning_rate = 0.01
     n_samples = n_samples
 
-    path = '../Grid_MNIST_filters/num_samples_' + str(n_samples)
+    path = '../Grid_Patch_filters/num_samples_' + str(n_samples)
     if not os.path.exists(path):
         os.makedirs(path)
 
@@ -297,8 +298,8 @@ def train_bfgs_rbm(epsilon,n_samples,epoches):
 
 
 
-    #patches = load_IMAGE()
-    patches = load_mnist()
+    patches = load_IMAGE()
+    #patches = load_mnist()
 
     #print(patches[0,:])
 
@@ -320,12 +321,15 @@ def train_bfgs_rbm(epsilon,n_samples,epoches):
         theta = opttheta
         sample_prob, data = mpf_optimizer.get_samples(theta= theta, data_samples = patches, n_samples=n_samples)
         opttheta,cost,messages = minimize(mpf_optimizer.get_cost_updates,theta,fprime=None,maxiter=400,
-                                         args=(data, sample_prob,epsilon))
+                                         args=(data, sample_prob,epsilon,sparsity,beta))
+        print('The cost for dmpf in epoch %d is %f'% (i, cost))
 
         W1,b1 = unravel_params(opttheta,visible_size= vis_units+hid_units)
         W1 = W1[:vis_units,vis_units:]
         saveName = path + '/weights_' + str(epsilon) + '_' + str(i) + '.png'
         display(W1.T,saveName=saveName)
+
+    return opttheta
 
 
 
@@ -384,7 +388,13 @@ if __name__ == '__main__':
     #     for n_samples in range(10):
     #         train_bfgs_rbm(epsilon= epsilon,  n_samples= n_samples+2 , epoches=20 )
 
-    train_bfgs_rbm(epsilon= 0.01,  n_samples= 1, epoches=20)
+    theta = train_bfgs_rbm(epsilon= 0.01,  n_samples= 5, epoches=7)
+
+    forward_all_sgd(epsilon=0.01,n_samples=5,learning_rate=0.001,sparsity=0.1,beta=3,epoches=200,theta=theta)
+
+
+
+
 
 
 
