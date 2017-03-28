@@ -86,10 +86,10 @@ def em_mpf(hidden_units,learning_rate, epsilon, decay =0.001,  batch_sz = 20, da
 
 
     binarizer = preprocessing.Binarizer(threshold=0.5)
-    data =  binarizer.transform(train_set[0][:10000])
+    data =  binarizer.transform(train_set[0][:20000])
     print(data.shape)
 
-    path = '../Thea_mpf'
+    path = '../Thea_mpf/hidden_' + str(hidden_units) + '/decay_' + str(decay) + '/lr_' + str(learning_rate)
     if not os.path.exists(path):
         os.makedirs(path)
     #displayNetwork(data[:100,:])
@@ -112,7 +112,7 @@ def em_mpf(hidden_units,learning_rate, epsilon, decay =0.001,  batch_sz = 20, da
 
     b = np.zeros(num_units)
 
-    out_epoch = 100
+    out_epoch = 800
     in_epoch = 1
 
     index = T.lscalar()    # index to a mini batch
@@ -189,10 +189,12 @@ def em_mpf(hidden_units,learning_rate, epsilon, decay =0.001,  batch_sz = 20, da
         # image.show()
         # image.save('EM_mpf_filters_at_epoch_%i.png' % (em_epoch))
 
-        W = mpf_optimizer.W.get_value(borrow = True)
-        W1 = W[:visible_units,visible_units:]
-        saveName = path + '/weights_' + str(em_epoch) + '.png'
-        display(W1.T,saveName=saveName)
+        if em_epoch % 10 == 0:
+
+            W = mpf_optimizer.W.get_value(borrow = True)
+            W1 = W[:visible_units,visible_units:]
+            saveName = path + '/weights_' + str(em_epoch) + '.png'
+            display(W1.T,saveName=saveName)
         # deviation = np.sum((W - W_init)**2)/(2*visible_units*hidden_units)
         # print(deviation)
 
@@ -270,7 +272,7 @@ def em_mpf(hidden_units,learning_rate, epsilon, decay =0.001,  batch_sz = 20, da
 
             # construct image
             image = Image.fromarray(image_data)
-            image.save('samples_%i.png' % em_epoch)
+            image.save(path + '/samples_%i.png' % em_epoch)
             # end-snippet-7
             # os.chdir('../')
 
@@ -284,7 +286,23 @@ def em_mpf(hidden_units,learning_rate, epsilon, decay =0.001,  batch_sz = 20, da
 if __name__ == '__main__':
 
 
-    em_mpf(hidden_units = 200,learning_rate = 0.001, epsilon = 0.01,decay=0.001)
+    learning_rate_list = [0.001, 0.01, 0.0001, 0.0005]
+    # hyper-parameters are: learning rate, num_samples, sparsity, beta, epsilon, batch_sz, epoches
+    # Important ones: num_samples, learning_rate,
+    n_samples_list = [1]
+    hidden_units_list = [200, 100, 300, 50, 400, 500]
+    beta_list = [0]
+    sparsity_list = [.1]
+    batch_list = [20]
+    decay_list = [0.001, 0.0001, 0.0005, 0.01 ]
+
+    for batch_size in batch_list:
+        for n_samples in n_samples_list:
+            for decay in decay_list:
+                for hidden_units in hidden_units_list:
+                    for learning_rate in learning_rate_list:
+                            em_mpf(hidden_units = hidden_units,learning_rate = learning_rate, epsilon = 0.01,
+                                   decay=decay)
 
 
 
