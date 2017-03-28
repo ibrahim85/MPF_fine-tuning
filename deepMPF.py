@@ -24,33 +24,6 @@ from utils import tile_raster_images
 
 
 
-def get_mpf_params(visible_units, hidden_units):
-
-    '''
-    :param visible_units: number of units in the visible layer
-    :param hidden_units: number of units ni the hidden layer
-    :return: The well structured MPF weight matrix
-    The MPF weight matrix is of the form:
-    [0,   W,
-     W.T, 0]
-    '''
-    numpy_rng = np.random.RandomState(555555)
-
-    W = numpy_rng.randn(visible_units,hidden_units)/np.sqrt(visible_units*hidden_units)
-
-   # W = np.random.uniform(low=-1, high=1,size = (visible_units,hidden_units))
-
-    W_up = np.concatenate((np.zeros((visible_units,visible_units)), W), axis = 1)
-
-    W_down = np.concatenate((W.T,np.zeros((hidden_units,hidden_units))), axis = 1 )
-
-    W = np.concatenate((W_up,W_down), axis = 0)
-
-    print(W.shape)
-
-    return W
-
-
 
 def mpf_em(dataset,hidden_units,dynamic=False):
 
@@ -287,7 +260,7 @@ def mpf_em(dataset,hidden_units,dynamic=False):
 
 if __name__ == '__main__':
 
-    W, b = mpf_em(hidden_units=300, dataset= None)
+    W, b = mpf_em(hidden_units=50, dataset= None)
 
 
     test_image = tile_raster_images(

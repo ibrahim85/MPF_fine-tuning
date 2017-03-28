@@ -6,7 +6,7 @@ import matplotlib.colors as colors
 
 
 def displayNetwork(A,optNormEach=False,optNormAll=True,numColumns=None,imageWidth=None,cmapName='gray',
-                   borderColor='blue',borderWidth=1,verbose=True,graphicsLibrary='matplotlib',saveName=''):
+                   borderColor='black',borderWidth=1,verbose=True,graphicsLibrary='matplotlib',saveName=''):
     # This function visualizes filters in matrix A. Each row of A is a
     # filter. We will reshape each row into a square image and visualizes
     # on each cell of the visualization panel. All other parameters are
@@ -74,7 +74,7 @@ def displayNetwork(A,optNormEach=False,optNormAll=True,numColumns=None,imageWidt
         plt.imshow(array,interpolation='nearest',
                    norm=colors.Normalize(vmin=0.0,vmax=1.0,clip=False))
         plt.set_cmap(cmap)
-        if verbose:
-            plt.show()
+        # if verbose:
+        #     #plt.show()
         if saveName != '':
             plt.savefig(saveName)

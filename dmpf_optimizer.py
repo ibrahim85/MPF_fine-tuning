@@ -14,15 +14,17 @@ from weighted_data_generator import *
 import os.path
 from theano.tensor.shared_randomstreams import RandomStreams
 import sys
-import copy
 sys.setrecursionlimit(40000)
+
+from adam import Adam
 
 
 '''Optimizes based on MPF for fully-observable boltzmann machine'''
 class dmpf_optimizer(object):
 
-    def __init__(self,epsilon = 1, num_units = 100, W = None, b = None,
-                 input = None,explicit_EM = False, batch_sz = 20, theano_rng = None, connect_function = '1-bit-flip' ):
+    def __init__(self,epsilon = 0.01, decay = 0.001,num_units = 984, W = None, b = None,
+                 input = None,explicit_EM = False, batch_sz = 20,
+                 theano_rng = None, connect_function = '1-bit-flip' ):
         '''
 
         :param W: the weights of the graph
@@ -74,6 +76,8 @@ class dmpf_optimizer(object):
 
         self.zero_grad = None
         self.explicit_EM = explicit_EM
+
+        self.decay = decay
         #self.params = []
 
 
@@ -95,7 +99,7 @@ class dmpf_optimizer(object):
 
 
     def get_dmpf_cost(self,visible_units, hidden_units, num_samples = 10,
-                      learning_rate = 0.01, n_samples = 1, sample_prob = None):
+                      learning_rate = 0.001, n_samples = 1, sample_prob = None):
 
         # In one round, we feed forward the and get the samples,
         # Compute the probability of each data samples,
@@ -192,28 +196,31 @@ class dmpf_optimizer(object):
 
         else:
 
-            self.sample_prob = sample_prob
-
-            self.sample_prob = self.sample_prob/T.sum(self.sample_prob)
+            # self.sample_prob = sample_prob
+            #
+            # self.sample_prob = self.sample_prob/T.sum(self.sample_prob)
 
             z = 1/2 - self.input
             energy_difference = z * (T.dot(self.input,self.W)+ self.b.reshape([1,-1]))
 
-            self.sample_prob = self.sample_prob.reshape((1,-1)).T
-            k = theano.shared(value= (np.asarray(np.ones(self.num_neuron),dtype=theano.config.floatX)).reshape((1,-1)))
-            self.sample_prob = T.dot(self.sample_prob, k)
+            # self.sample_prob = self.sample_prob.reshape((1,-1)).T
+            # k = theano.shared(value= (np.asarray(np.ones(self.num_neuron),dtype=theano.config.floatX)).reshape((1,-1)))
+            # self.sample_prob = T.dot(self.sample_prob, k)
+            cost = (self.epsilon/self.batch_sz) * T.sum(T.exp(energy_difference))
+            cost_weight = 0.5 * self.decay * T.sum(self.W**2)
+            cost += cost_weight
 
-            cost = (self.epsilon) * T.sum(T.exp(energy_difference)*self.sample_prob)
-
-            W_grad = T.grad(cost = cost, wrt = self.W)
-            b_grad = T.grad(cost=cost, wrt=self.b)
-
+            h = z * T.exp(energy_difference)
+            W_grad = (T.dot(h.T,self.input)+T.dot(self.input.T,h))*self.epsilon/self.batch_sz
+            b_grad = T.mean(h,axis=0)*self.epsilon
+            decay_grad = self.decay*self.W
+            W_grad += decay_grad
 
         W_grad *= self.zero_grad
 
-        updates = [(self.W, self.W - learning_rate * W_grad),
-                (self.b, self.b - learning_rate * b_grad)]
+        grads = [W_grad,b_grad]
 
+        updates = Adam(grads=grads,params=self.params,lr=learning_rate)
 
         return cost, updates
 
