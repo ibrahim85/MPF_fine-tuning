@@ -89,7 +89,8 @@ def em_mpf(hidden_units,learning_rate, epsilon, decay =0.001,  batch_sz = 20, da
     data =  binarizer.transform(train_set[0][:20000])
     print(data.shape)
 
-    path = '../Thea_mpf/hidden_' + str(hidden_units) + '/decay_' + str(decay) + '/lr_' + str(learning_rate)
+    path = '../Thea_mpf/hidden_' + str(hidden_units) + '/decay_' + str(decay) + '/lr_' + str(learning_rate) \
+           + '/bsz_' + str(batch_sz)
     if not os.path.exists(path):
         os.makedirs(path)
     #displayNetwork(data[:100,:])
@@ -112,7 +113,7 @@ def em_mpf(hidden_units,learning_rate, epsilon, decay =0.001,  batch_sz = 20, da
 
     b = np.zeros(num_units)
 
-    out_epoch = 800
+    out_epoch = 300
     in_epoch = 1
 
     index = T.lscalar()    # index to a mini batch
@@ -187,16 +188,40 @@ def em_mpf(hidden_units,learning_rate, epsilon, decay =0.001,  batch_sz = 20, da
         # image.show()
         # image.save('EM_mpf_filters_at_epoch_%i.png' % (em_epoch))
 
-        #if em_epoch % 10 == 0:
+        if em_epoch % 20 == 0:
 
-         #   W = mpf_optimizer.W.get_value(borrow = True)
-          #  W1 = W[:visible_units,visible_units:]
-           # saveName = path + '/weights_' + str(em_epoch) + '.png'
+            # W = mpf_optimizer.W.get_value(borrow = True)
+            # W1 = W[:visible_units,visible_units:]
+            #
+            saveName = path + '/weights_' + str(em_epoch) + '.png'
+
             #displayNetwork(W1.T,saveName=saveName)
-        # deviation = np.sum((W - W_init)**2)/(2*visible_units*hidden_units)
-        # print(deviation)
+            if hidden_units == 200:
+                tile_shape = (20,10)
+            elif hidden_units == 500:
+                tile_shape = (25,20)
 
-        if em_epoch >0 and em_epoch % 10 == 0:
+            image = Image.fromarray(
+                tile_raster_images(  X=(mpf_optimizer.W.get_value(borrow = True)[:visible_units,visible_units:]).T,
+                        img_shape=(28, 28),
+                        tile_shape=tile_shape,
+                        tile_spacing=(1, 1)
+                    )
+                    )
+            image.save(saveName)
+
+        if em_epoch+1 % 100 ==0:
+            W = mpf_optimizer.W.get_value(borrow = True)
+            W1 = W[:visible_units,visible_units:]
+            b1 = mpf_optimizer.b.get_value(borrow = True)
+
+            saveName_w = path + '/weights_' + str(em_epoch) + '.npy'
+            saveName_b = path + '/bias_' + str(em_epoch) + '.npy'
+            np.save(saveName_w,W1)
+            np.save(saveName_b,b1)
+
+
+        if em_epoch >0 and em_epoch % 20 == 0:
             n_chains = 20
             n_samples = 10
             rng = np.random.RandomState(123)
@@ -284,20 +309,20 @@ def em_mpf(hidden_units,learning_rate, epsilon, decay =0.001,  batch_sz = 20, da
 if __name__ == '__main__':
 
 
-    learning_rate_list = [0.001, 0.01, 0.0001, 0.0005]
+    learning_rate_list = [0.001, 0.005, 0.002]
     # hyper-parameters are: learning rate, num_samples, sparsity, beta, epsilon, batch_sz, epoches
     # Important ones: num_samples, learning_rate,
     n_samples_list = [1]
-    hidden_units_list = [200, 100, 300, 50, 400, 500]
+    hidden_units_list = [200, 500]
     beta_list = [0]
     sparsity_list = [.1]
-    batch_list = [20]
-    decay_list = [0.001, 0.0001, 0.0005, 0.01 ]
+    batch_list = [40]
+    decay_list = [0.0001, 0.001, 0.01]
 
     for batch_size in batch_list:
         for n_samples in n_samples_list:
-            for decay in decay_list:
-                for hidden_units in hidden_units_list:
+            for hidden_units in hidden_units_list:
+                for decay in decay_list:
                     for learning_rate in learning_rate_list:
                             em_mpf(hidden_units = hidden_units,learning_rate = learning_rate, epsilon = 0.01,
                                    decay=decay)
