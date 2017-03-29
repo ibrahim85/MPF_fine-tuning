@@ -10,10 +10,10 @@ import gzip
 import timeit, pickle, sys, math
 import theano
 import theano.tensor as T
-import Image
+from PIL import Image
 import copy
 import os
-from display_network import displayNetwork as display
+from display_network import displayNetwork
 
 from utils import tile_raster_images
 
@@ -163,11 +163,10 @@ def em_mpf(hidden_units,learning_rate, epsilon, decay =0.001,  batch_sz = 20, da
         #sample_prob = get_sample_prob(activations) # This is a vector, each entry stands for the probability of
         #the respected sample
         #y = T.vector('y')
-
-        new_data.set_value(sample_data)
+	#new_data.set_value(np.asarray(sample_data, dtype=theano.config.floatX))
         # sample_prob = theano.shared(value = np.asarray(sample_prob, dtype= theano.config.floatX),
         #                             name='prob',borrow = True)
-
+        new_data.set_value(value=np.asarray(sample_data, dtype=theano.config.floatX),borrow = True)
         mean_epoch_error = []
         for mpf_epoch in range(in_epoch):
             mean_cost = []
@@ -179,8 +178,7 @@ def em_mpf(hidden_units,learning_rate, epsilon, decay =0.001,  batch_sz = 20, da
 
         #
         # image = Image.fromarray(
-        #         tile_raster_images(
-        #             X=(mpf_optimizer.W.get_value(borrow = True)[:visible_units,visible_units:]).T,
+        #         tile_raster_images(       #             X=(mpf_optimizer.W.get_value(borrow = True)[:visible_units,visible_units:]).T,
         #                 img_shape=(28, 28),
         #                 tile_shape=(10, 10),
         #                 tile_spacing=(1, 1)
@@ -189,12 +187,12 @@ def em_mpf(hidden_units,learning_rate, epsilon, decay =0.001,  batch_sz = 20, da
         # image.show()
         # image.save('EM_mpf_filters_at_epoch_%i.png' % (em_epoch))
 
-        if em_epoch % 10 == 0:
+        #if em_epoch % 10 == 0:
 
-            W = mpf_optimizer.W.get_value(borrow = True)
-            W1 = W[:visible_units,visible_units:]
-            saveName = path + '/weights_' + str(em_epoch) + '.png'
-            display(W1.T,saveName=saveName)
+         #   W = mpf_optimizer.W.get_value(borrow = True)
+          #  W1 = W[:visible_units,visible_units:]
+           # saveName = path + '/weights_' + str(em_epoch) + '.png'
+            #displayNetwork(W1.T,saveName=saveName)
         # deviation = np.sum((W - W_init)**2)/(2*visible_units*hidden_units)
         # print(deviation)
 
