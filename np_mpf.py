@@ -4,7 +4,7 @@ import timeit, pickle, sys, math, os
 import matplotlib.pyplot as plt
 import sys
 from numpy.linalg import norm
-from deepMPF import get_mpf_params
+from EM_MPF import get_mpf_params
 sys.setrecursionlimit(40000)
 from scipy.optimize import fmin_l_bfgs_b as minimize
 from SparseAutoencoder_minst import displayNetwork as display

@@ -14,8 +14,6 @@ from PIL import Image
 import copy
 import os
 from display_network import displayNetwork
-import matplotlib.pyplot as plt
-
 
 from utils import tile_raster_images
 
@@ -59,16 +57,15 @@ def get_mpf_params(visible_units, hidden_units):
 
     return W
 
+#
+# def get_sample_prob(activations):
+#
+#     prob = np.prod(activations,axis=1)
+#     prob = prob / np.sum(prob)
+#
+#     return prob
 
-def show_loss(savename, epoch_error = None):
 
-    x = np.arange(len(epoch_error))
-    plt.plot(x, epoch_error, 'r')
-    plt.xlabel('Epoches')
-    plt.ylabel('Loss')
-    plt.title('Adam Training Loss')
-    plt.grid(True)
-    plt.savefig(savename)
 
 def em_mpf(hidden_units,learning_rate, epsilon, decay =0.001,  batch_sz = 20, dataset = None):
 
@@ -147,12 +144,11 @@ def em_mpf(hidden_units,learning_rate, epsilon, decay =0.001,  batch_sz = 20, da
         updates=updates,
         givens={
         x: new_data[index * batch_sz: (index + 1) * batch_sz],
+            #y: sample_prob[index * batch_sz: (index + 1) * batch_sz]
         },
         #on_unused_input='warn',
     )
 
-
-    mean_epoch_error = []
 
     start_time = timeit.default_timer()
 
@@ -168,25 +164,42 @@ def em_mpf(hidden_units,learning_rate, epsilon, decay =0.001,  batch_sz = 20, da
         #sample_prob = get_sample_prob(activations) # This is a vector, each entry stands for the probability of
         #the respected sample
         #y = T.vector('y')
-	    #new_data.set_value(np.asarray(sample_data, dtype=theano.config.floatX))
+	#new_data.set_value(np.asarray(sample_data, dtype=theano.config.floatX))
         # sample_prob = theano.shared(value = np.asarray(sample_prob, dtype= theano.config.floatX),
         #                             name='prob',borrow = True)
         new_data.set_value(value=np.asarray(sample_data, dtype=theano.config.floatX),borrow = True)
-
+        mean_epoch_error = []
         for mpf_epoch in range(in_epoch):
             mean_cost = []
             for batch_index in range(n_train_batches):
                 mean_cost += [train_mpf(batch_index)]
+
             mean_epoch_error += [np.mean(mean_cost)]
         print('The cost for mpf in epoch %d is %f'% (em_epoch,mean_epoch_error[-1]))
 
+        #
+        # image = Image.fromarray(
+        #         tile_raster_images(       #             X=(mpf_optimizer.W.get_value(borrow = True)[:visible_units,visible_units:]).T,
+        #                 img_shape=(28, 28),
+        #                 tile_shape=(10, 10),
+        #                 tile_spacing=(1, 1)
+        #             )
+        #             )
+        # image.show()
+        # image.save('EM_mpf_filters_at_epoch_%i.png' % (em_epoch))
 
         if em_epoch % 20 == 0:
 
-            saveName = path + '/weights_' + str(em_epoch) + '.eps'
-            tile_shape = (20, hidden_units//20)
+            # W = mpf_optimizer.W.get_value(borrow = True)
+            # W1 = W[:visible_units,visible_units:]
+            #
+            saveName = path + '/weights_' + str(em_epoch) + '.png'
 
             #displayNetwork(W1.T,saveName=saveName)
+            if hidden_units == 300:
+                tile_shape = (20,15)
+            elif hidden_units == 400:
+                tile_shape = (20,20)
 
             image = Image.fromarray(
                 tile_raster_images(  X=(mpf_optimizer.W.get_value(borrow = True)[:visible_units,visible_units:]).T,
@@ -282,13 +295,9 @@ def em_mpf(hidden_units,learning_rate, epsilon, decay =0.001,  batch_sz = 20, da
 
             # construct image
             image = Image.fromarray(image_data)
-            image.save(path + '/samples_%i.eps' % em_epoch)
+            image.save(path + '/samples_%i.png' % em_epoch)
             # end-snippet-7
             # os.chdir('../')
-
-
-    loss_savename = path + '/train_loss.eps'
-    show_loss(savename= loss_savename, epoch_error= mean_epoch_error)
 
     end_time = timeit.default_timer()
 
@@ -303,21 +312,20 @@ if __name__ == '__main__':
     learning_rate_list = [0.001]
     # hyper-parameters are: learning rate, num_samples, sparsity, beta, epsilon, batch_sz, epoches
     # Important ones: num_samples, learning_rate,
-    hidden_units_list = [100, 40]
     n_samples_list = [1]
+    hidden_units_list = [300, 400, 500, 1000]
     beta_list = [0]
     sparsity_list = [.1]
     batch_list = [40]
-    decay_list = [0.0001, 0.001]
+    decay_list = [0.0001]
 
     for batch_size in batch_list:
         for n_samples in n_samples_list:
             for hidden_units in hidden_units_list:
                 for decay in decay_list:
                     for learning_rate in learning_rate_list:
-                            em_mpf(hidden_units = hidden_units,learning_rate = learning_rate, epsilon = 0.01,decay=decay,
-                                   batch_sz=batch_size)
-
+                            em_mpf(hidden_units = hidden_units,learning_rate = learning_rate, epsilon = 0.01,
+                                   decay=decay,batch_sz= batch_size)
 
 
 
