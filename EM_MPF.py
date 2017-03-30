@@ -86,7 +86,7 @@ def em_mpf(hidden_units,learning_rate, epsilon, decay =0.001,  batch_sz = 20, da
 
 
     binarizer = preprocessing.Binarizer(threshold=0.5)
-    data =  binarizer.transform(train_set[0][:20000])
+    data =  binarizer.transform(train_set[0])
     print(data.shape)
 
     path = '../Thea_mpf/hidden_' + str(hidden_units) + '/decay_' + str(decay) + '/lr_' + str(learning_rate) \
@@ -113,7 +113,7 @@ def em_mpf(hidden_units,learning_rate, epsilon, decay =0.001,  batch_sz = 20, da
 
     b = np.zeros(num_units)
 
-    out_epoch = 300
+    out_epoch = 500
     in_epoch = 1
 
     index = T.lscalar()    # index to a mini batch
@@ -196,10 +196,10 @@ def em_mpf(hidden_units,learning_rate, epsilon, decay =0.001,  batch_sz = 20, da
             saveName = path + '/weights_' + str(em_epoch) + '.png'
 
             #displayNetwork(W1.T,saveName=saveName)
-            if hidden_units == 200:
-                tile_shape = (20,10)
-            elif hidden_units == 500:
-                tile_shape = (25,20)
+            if hidden_units == 300:
+                tile_shape = (20,15)
+            elif hidden_units == 400:
+                tile_shape = (20,20)
 
             image = Image.fromarray(
                 tile_raster_images(  X=(mpf_optimizer.W.get_value(borrow = True)[:visible_units,visible_units:]).T,
@@ -309,11 +309,11 @@ def em_mpf(hidden_units,learning_rate, epsilon, decay =0.001,  batch_sz = 20, da
 if __name__ == '__main__':
 
 
-    learning_rate_list = [0.001, 0.005, 0.002]
+    learning_rate_list = [0.001]
     # hyper-parameters are: learning rate, num_samples, sparsity, beta, epsilon, batch_sz, epoches
     # Important ones: num_samples, learning_rate,
     n_samples_list = [1]
-    hidden_units_list = [200, 400]
+
     beta_list = [0]
     sparsity_list = [.1]
     batch_list = [40]
@@ -325,7 +325,7 @@ if __name__ == '__main__':
                 for decay in decay_list:
                     for learning_rate in learning_rate_list:
                             em_mpf(hidden_units = hidden_units,learning_rate = learning_rate, epsilon = 0.01,
-                                   decay=decay, batch_sz=batch_size)
+
 
 
 
