@@ -184,7 +184,7 @@ def em_mpf(hidden_units,learning_rate, epsilon, decay =0.001,  batch_sz = 20, da
         if em_epoch % 20 == 0:
 
             saveName = path + '/weights_' + str(em_epoch) + '.eps'
-            tile_shape = (20, hidden_units//20)
+            tile_shape = (10, hidden_units//10)
 
             #displayNetwork(W1.T,saveName=saveName)
 
@@ -197,7 +197,7 @@ def em_mpf(hidden_units,learning_rate, epsilon, decay =0.001,  batch_sz = 20, da
                     )
             image.save(saveName)
 
-        if em_epoch+1 % 1 ==0:
+        if int(em_epoch+1) % 100 ==0:
             W = mpf_optimizer.W.get_value(borrow = True)
             W1 = W[:visible_units,visible_units:]
             b1 = mpf_optimizer.b.get_value(borrow = True)
@@ -303,7 +303,7 @@ if __name__ == '__main__':
     learning_rate_list = [0.001]
     # hyper-parameters are: learning rate, num_samples, sparsity, beta, epsilon, batch_sz, epoches
     # Important ones: num_samples, learning_rate,
-    hidden_units_list = [100]
+    hidden_units_list = [100, 40]
     n_samples_list = [1]
     beta_list = [0]
     sparsity_list = [.1]
