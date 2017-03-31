@@ -150,7 +150,8 @@ def em_mpf(hidden_units,learning_rate, epsilon, decay =0.001,  batch_sz = 20, da
         #on_unused_input='warn',
     )
 
-
+    saveName_w = None
+    saveName_b = None
     mean_epoch_error = []
 
     start_time = timeit.default_timer()
@@ -296,6 +297,8 @@ def em_mpf(hidden_units,learning_rate, epsilon, decay =0.001,  batch_sz = 20, da
 
     print ('Training took %f minutes' % (running_time / 60.))
 
+    return saveName_w, saveName_b
+
 
 if __name__ == '__main__':
 
@@ -315,7 +318,7 @@ if __name__ == '__main__':
             for hidden_units in hidden_units_list:
                 for decay in decay_list:
                     for learning_rate in learning_rate_list:
-                            em_mpf(hidden_units = hidden_units,learning_rate = learning_rate, epsilon = 0.01,decay=decay,
+                            savename_w, savename_b = em_mpf(hidden_units = hidden_units,learning_rate = learning_rate, epsilon = 0.01,decay=decay,
                                    batch_sz=batch_size)
 
 
