@@ -21,7 +21,7 @@ def plot_embedding(X, title=None):
 
     plt.figure()
     ax = plt.subplot(111)
-    for i in range(X.shape[0]):
+    for i in range(10000):
         plt.text(X[i, 0], X[i, 1], str(targets[i]),
                  color=plt.cm.Set1(targets[i] / 10.),
                  fontdict={'weight': 'bold', 'size': 9})
@@ -36,7 +36,8 @@ def t_sne(weight,bias,hidden_units):
     b = b[visible_units:]
     activation = sigmoid(np.dot(data,W) + b.reshape([1,-1]))
 
-    tsne = manifold.TSNE(n_components=2, perplexity= 40, random_state=0)
+    tsne = manifold.TSNE(n_components=2, perplexity= 40, early_exaggeration=4.0, learning_rate=1000.0,
+                         init='pca', random_state=0)
 
     X_tsne = tsne.fit_transform(activation)
 
@@ -47,5 +48,15 @@ def t_sne(weight,bias,hidden_units):
                (time() - t0))
 
     plt.show()
+
+
+
+weight = '../mpf_results/weights_499.npy'
+bias = 'bias_499.npy'
+hidden_units = 100
+
+
+t_sne(weight=weight,bias=bias,hidden_units=hidden_units)
+
 
 
