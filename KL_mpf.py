@@ -228,7 +228,7 @@ def load_mnist(dataset = None):
     binarizer = preprocessing.Binarizer(threshold=0.5)
     data =  binarizer.transform(train_set[0])
 
-    return data[:10000]
+    return data
 
 
 def load_IMAGE():

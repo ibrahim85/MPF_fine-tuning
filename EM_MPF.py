@@ -15,8 +15,7 @@ import copy
 import os
 from display_network import displayNetwork
 import matplotlib.pyplot as plt
-
-
+plt.switch_backend('agg')
 from utils import tile_raster_images
 
 def sigmoid(x):
@@ -171,7 +170,8 @@ def em_mpf(hidden_units,learning_rate, epsilon, decay =0.001,  batch_sz = 20, da
 	    #new_data.set_value(np.asarray(sample_data, dtype=theano.config.floatX))
         # sample_prob = theano.shared(value = np.asarray(sample_prob, dtype= theano.config.floatX),
         #                             name='prob',borrow = True)
-        new_data.set_value(value=np.asarray(sample_data, dtype=theano.config.floatX),borrow = True)
+        #new_data.set_value(value=np.asarray(sample_data, dtype=theano.config.floatX),borrow = True)
+        new_data.set_value(np.asarray(sample_data, dtype=theano.config.floatX))
 
         for mpf_epoch in range(in_epoch):
             mean_cost = []
@@ -197,7 +197,7 @@ def em_mpf(hidden_units,learning_rate, epsilon, decay =0.001,  batch_sz = 20, da
                     )
             image.save(saveName)
 
-        if em_epoch+1 % 100 ==0:
+        if em_epoch+1 % 1 ==0:
             W = mpf_optimizer.W.get_value(borrow = True)
             W1 = W[:visible_units,visible_units:]
             b1 = mpf_optimizer.b.get_value(borrow = True)
@@ -303,12 +303,12 @@ if __name__ == '__main__':
     learning_rate_list = [0.001]
     # hyper-parameters are: learning rate, num_samples, sparsity, beta, epsilon, batch_sz, epoches
     # Important ones: num_samples, learning_rate,
-    hidden_units_list = [100, 40]
+    hidden_units_list = [100]
     n_samples_list = [1]
     beta_list = [0]
     sparsity_list = [.1]
     batch_list = [40]
-    decay_list = [0.0001, 0.001]
+    decay_list = [0.0001]
 
     for batch_size in batch_list:
         for n_samples in n_samples_list:
