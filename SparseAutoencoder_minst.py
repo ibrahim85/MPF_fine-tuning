@@ -19,7 +19,6 @@ import struct
 from scipy.optimize import fmin_l_bfgs_b as minimize
 import os, struct
 from array import array
-from cvxopt.base import matrix
 
 ## ---------------------------------------------------------------
 
