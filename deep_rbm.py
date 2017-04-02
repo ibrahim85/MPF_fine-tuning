@@ -13,7 +13,7 @@ import os
 import matplotlib.pyplot as plt
 plt.switch_backend('agg')
 from utils import tile_raster_images
-from EM_MPF import em_mpf, get_mpf_params, propup
+from EM_MPF import em_mpf, get_mpf_params, propup, show_loss
 from dmpf_optimizer import dmpf_optimizer
 from KL_mpf import sigmoid
 
@@ -33,8 +33,7 @@ def rbm_mpf(hidden_units,decay,learning_rate,batch_sz,dataset = None,epsilon = 0
     :return:
     '''
 
-    path = '../Thea_mpf/rbm_hidden_' + str(hidden_units)
-           # + '/decay_' + str(decay) + '/lr_' + str(learning_rate) \
+    path = '../Thea_mpf/rbm_hidden_' + str(hidden_units) + '/decay_' + str(decay) + '/lr_' + str(learning_rate)
            # + '/bsz_' + str(batch_sz)
     if not os.path.exists(path):
         os.makedirs(path)
@@ -113,7 +112,7 @@ def rbm_mpf(hidden_units,decay,learning_rate,batch_sz,dataset = None,epsilon = 0
 
         if em_epoch % 20 == 0:
 
-            saveName = path + '/weights_' + str(em_epoch) + '.eps'
+            saveName = path + '/weights_' + str(em_epoch) + '.png'
 
             tile_shape = (20, hidden_units//20)
 
@@ -137,6 +136,9 @@ def rbm_mpf(hidden_units,decay,learning_rate,batch_sz,dataset = None,epsilon = 0
             saveName_b = path + '/bias_' + str(em_epoch) + '.npy'
             np.save(saveName_w,W1)
             np.save(saveName_b,b1)
+
+    loss_savename = path + '/train_loss.eps'
+    show_loss(savename= loss_savename, epoch_error= mean_epoch_error)
 
     end_time = timeit.default_timer()
 
@@ -199,6 +201,8 @@ def train_deep_rbm(learning_rate, lay1_unit, lay2_unit,decay, batch_size=40, epo
     saveName_w2, saveName_b2 = rbm_mpf( dataset = hidden1_data_path,hidden_units=layer_2_hid,decay=decay,learning_rate= learning_rate,
             batch_sz= batch_sz,epsilon = 0.01)
 
+    return savename_w1, savename_b1,saveName_w2, saveName_b2
+
 
 
 if __name__ == '__main__':
@@ -208,11 +212,10 @@ if __name__ == '__main__':
     lay1_list = [196, 400, 100]
     lay2_list = [100, 60, 20]
 
-    decay_list = [0.001, 0.0001]
+    decay_list = [0.001, 0.0001, 0.01]
     epoches = 500
-
-    for decay in decay_list:
-        for lr in learning_list:
+    for lr in learning_list:
+        for decay in decay_list:
             for lay1_unit in lay1_list:
                 for lay2_unit in lay2_list:
                     train_deep_rbm(learning_rate=lr,lay1_unit=lay1_unit,lay2_unit=lay2_unit,
