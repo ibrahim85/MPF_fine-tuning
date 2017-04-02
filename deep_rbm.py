@@ -15,10 +15,11 @@ plt.switch_backend('agg')
 from utils import tile_raster_images
 from EM_MPF import em_mpf, get_mpf_params, propup
 from dmpf_optimizer import dmpf_optimizer
+from KL_mpf import sigmoid
 
 
 
-def rbm_mpf(data,hidden_units,decay,learning_rate,batch_sz,epsilon = 0.01):
+def rbm_mpf(hidden_units,decay,learning_rate,batch_sz,dataset = None,epsilon = 0.01):
     '''
     This function defines a general rbm training process. Starting from the data, together
     with the hyper-parameters, we train the rbm and return the associated weight, bias.
@@ -38,7 +39,7 @@ def rbm_mpf(data,hidden_units,decay,learning_rate,batch_sz,epsilon = 0.01):
     if not os.path.exists(path):
         os.makedirs(path)
 
-    data = np.load(data)
+    data = np.load(dataset)
     visible_units = data.shape[1]
 
     n_train_batches = data.shape[0]//batch_sz
@@ -125,7 +126,7 @@ def rbm_mpf(data,hidden_units,decay,learning_rate,batch_sz,epsilon = 0.01):
                     )
             image.save(saveName)
 
-        if em_epoch+1 % 100 ==0:
+        if (em_epoch+1) % 100 ==0:
             W = mpf_optimizer.W.get_value(borrow = True)
             W1 = W[:visible_units,visible_units:]
             b1 = mpf_optimizer.b.get_value(borrow = True)
@@ -146,7 +147,7 @@ def rbm_mpf(data,hidden_units,decay,learning_rate,batch_sz,epsilon = 0.01):
 
 
 
-def train_deep_rbm(n_rbm):
+def train_deep_rbm():
 
 
     epsilon = 0.01
@@ -158,14 +159,46 @@ def train_deep_rbm(n_rbm):
 
     decay = 0.0001
     batch_sz = 20
-    epoches = 500
+    epoches = 100
 
 
-    em_mpf(hidden_units = layer_1_hid,learning_rate = learning_rate, epsilon = 0.01,decay=decay,
-                                   batch_sz=batch_sz)
+    dataset = 'mnist.pkl.gz'
+    f = gzip.open(dataset, 'rb')
+    train_set, valid_set, test_set = pickle.load(f,encoding="bytes")
+    f.close()
+    binarizer = preprocessing.Binarizer(threshold=0.5)
+    data =  binarizer.transform(train_set[0])
 
-    path = '../Thea_mpf/hidden_' + str(layer_1_hid) + '/decay_' + str(decay) + '/lr_' + str(learning_rate) \
-           + '/bsz_' + str(batch_sz)
+    visible_units = data.shape[1]
+
+
+    savename_w1, savename_b1 = em_mpf(hidden_units = layer_1_hid,learning_rate = learning_rate, epsilon = 0.01,decay=decay,
+                                   batch_sz=batch_sz, epoch= epoches)
+
+
+    W1 = np.load(savename_w1)
+
+    b1 = np.load(savename_b1)
+
+    b1 = b1[visible_units:]
+    activation = sigmoid(np.dot(data,W1) + b1.reshape([1,-1]))
+
+    hidden1_data = np.random.binomial(n=1,p = activation)
+
+    path = '../Thea_mpf/rbm_hidden_' + str(layer_2_hid)
+           # + '/decay_' + str(decay) + '/lr_' + str(learning_rate) \
+           # + '/bsz_' + str(batch_sz)
+    if not os.path.exists(path):
+        os.makedirs(path)
+
+    hidden1_data_path = path + '/hidden_data.npy'
+    np.save(hidden1_data_path, hidden1_data)
+
+    saveName_w2, saveName_b2 = rbm_mpf( dataset = hidden1_data_path,hidden_units=layer_2_hid,decay=decay,learning_rate= learning_rate,
+            batch_sz= batch_sz,epsilon = 0.01)
 
 
 
+if __name__ == '__main__':
+
+    train_deep_rbm()

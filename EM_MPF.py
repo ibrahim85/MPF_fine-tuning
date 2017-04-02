@@ -69,7 +69,7 @@ def show_loss(savename, epoch_error = None):
     plt.grid(True)
     plt.savefig(savename)
 
-def em_mpf(hidden_units,learning_rate, epsilon, decay =0.001,  batch_sz = 20, dataset = None):
+def em_mpf(hidden_units,learning_rate, epsilon, epoch = 500,  decay =0.001,  batch_sz = 20, dataset = None):
 
     ################################################################
     ################## Loading the Data        #####################
@@ -115,7 +115,7 @@ def em_mpf(hidden_units,learning_rate, epsilon, decay =0.001,  batch_sz = 20, da
 
     b = np.zeros(num_units)
 
-    out_epoch = 500
+    out_epoch = epoch
     in_epoch = 1
 
     index = T.lscalar()    # index to a mini batch
