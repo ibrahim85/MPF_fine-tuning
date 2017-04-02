@@ -120,11 +120,7 @@ def rbm_mpf(hidden_units,decay,learning_rate,batch_sz,dataset = None,epsilon = 0
 
             image = Image.fromarray(
                 tile_raster_images(  X=(mpf_optimizer.W.get_value(borrow = True)[:visible_units,visible_units:]).T,
-<<<<<<< HEAD
-                        img_shape=(20,10),
-=======
                         img_shape=image_shape,
->>>>>>> 0bcf54a01d657ae113dc4373f4d861472726d1d3
                         tile_shape=tile_shape,
                         tile_spacing=(1, 1)
                     )
@@ -164,16 +160,6 @@ def train_deep_rbm(learning_rate, lay1_unit, lay2_unit,decay, batch_size=40, epo
 
     layer_1_hid = lay1_unit
     layer_2_hid = lay2_unit
-
-<<<<<<< HEAD
-    decay = 0.0001
-    batch_sz = 20
-    epoches = 1
-=======
-    decay = decay
-    batch_sz = batch_size
-    epoches = epoches
->>>>>>> 0bcf54a01d657ae113dc4373f4d861472726d1d3
 
 
     dataset = 'mnist.pkl.gz'
@@ -217,9 +203,6 @@ def train_deep_rbm(learning_rate, lay1_unit, lay2_unit,decay, batch_size=40, epo
 
 if __name__ == '__main__':
 
-<<<<<<< HEAD
-    train_deep_rbm()
-=======
 
     learning_list = [0.001]
     lay1_list = [196, 400, 100]
@@ -233,4 +216,3 @@ if __name__ == '__main__':
                 for lay2_unit in lay2_list:
                     train_deep_rbm(learning_rate=lr,lay1_unit=lay1_unit,lay2_unit=lay2_unit,
                                    decay=decay,epoches=epoches)
->>>>>>> 0bcf54a01d657ae113dc4373f4d861472726d1d3

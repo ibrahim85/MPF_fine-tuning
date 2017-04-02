@@ -197,12 +197,6 @@ def em_mpf(hidden_units,learning_rate, epsilon, epoch = 500,  decay =0.001,  bat
                     )
                     )
             image.save(saveName)
-
-<<<<<<< HEAD
-        if int(em_epoch+1) % 1 ==0:
-=======
-        #if int(em_epoch+1) % 100 ==0:
->>>>>>> 0bcf54a01d657ae113dc4373f4d861472726d1d3
             W = mpf_optimizer.W.get_value(borrow = True)
             W1 = W[:visible_units,visible_units:]
             b1 = mpf_optimizer.b.get_value(borrow = True)
