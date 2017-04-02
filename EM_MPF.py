@@ -182,9 +182,9 @@ def em_mpf(hidden_units,learning_rate, epsilon, epoch = 500,  decay =0.001,  bat
         print('The cost for mpf in epoch %d is %f'% (em_epoch,mean_epoch_error[-1]))
 
 
-        if em_epoch % 20 == 0:
+        if int(em_epoch+1) % 100 ==0:
 
-            saveName = path + '/weights_' + str(em_epoch) + '.eps'
+            saveName = path + '/weights_' + str(em_epoch) + '.png'
             tile_shape = (10, hidden_units//10)
 
             #displayNetwork(W1.T,saveName=saveName)
@@ -198,7 +198,11 @@ def em_mpf(hidden_units,learning_rate, epsilon, epoch = 500,  decay =0.001,  bat
                     )
             image.save(saveName)
 
+<<<<<<< HEAD
         if int(em_epoch+1) % 1 ==0:
+=======
+        #if int(em_epoch+1) % 100 ==0:
+>>>>>>> 0bcf54a01d657ae113dc4373f4d861472726d1d3
             W = mpf_optimizer.W.get_value(borrow = True)
             W1 = W[:visible_units,visible_units:]
             b1 = mpf_optimizer.b.get_value(borrow = True)
@@ -209,7 +213,7 @@ def em_mpf(hidden_units,learning_rate, epsilon, epoch = 500,  decay =0.001,  bat
             np.save(saveName_b,b1)
 
 
-        if em_epoch >0 and em_epoch % 20 == 0:
+        if em_epoch > 0 and em_epoch % 100 == 0:
             n_chains = 20
             n_samples = 10
             rng = np.random.RandomState(123)
