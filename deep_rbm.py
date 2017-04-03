@@ -177,7 +177,7 @@ def train_deep_rbm(learning_rate, lay1_unit, lay2_unit,decay, savename_w1 =None,
         savename_w1, savename_b1 = em_mpf(hidden_units = layer_1_hid,learning_rate = learning_rate, epsilon = 0.01,decay=decay,
                                    batch_sz=batch_size, epoch= epoches)
 
-    print('This is the end of the first RBM................')
+        print('This is the end of the first RBM................')
     W1 = np.load(savename_w1)
 
     b1 = np.load(savename_b1)
@@ -211,9 +211,14 @@ if __name__ == '__main__':
     lay2_list = [100, 196]
     decay_list = [0, 0.00001, 0.1,  0.0001]
     epoches = 500
+
     for lr in learning_list:
         for decay in decay_list:
             for lay1_unit in lay1_list:
+                save_w1 = '../Thea_mpf/hidden_' + str(lay1_unit) + '/decay_' + str(decay) + '/lr_' + str(lr) \
+                        + '/bsz_' + str(40)+ '/weights_' + str(epoches) + '.npy'
+                save_b1 = '../Thea_mpf/hidden_' + str(lay1_unit) + '/decay_' + str(decay) + '/lr_' + str(lr) \
+                        + '/bsz_' + str(40)+ '/weights_' + str(epoches) + 'bias.npy'
                 for lay2_unit in lay2_list:
-                    train_deep_rbm(learning_rate=lr,lay1_unit=lay1_unit,lay2_unit=lay2_unit,
-                                   decay=decay,epoches=epoches)
+                    train_deep_rbm(learning_rate=lr,lay1_unit=lay1_unit,lay2_unit=lay2_unit,savename_w1=save_w1,
+                                   savename_b1= save_b1,decay=decay,epoches=epoches)
