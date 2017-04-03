@@ -32,12 +32,6 @@ def rbm_mpf(hidden_units,decay,learning_rate,batch_sz,dataset = None,epsilon = 0
     :param epsilon:
     :return:
     '''
-
-    path = '../Thea_mpf/rbm_hidden_' + str(hidden_units) + '/decay_' + str(decay) + '/lr_' + str(learning_rate)
-           # + '/bsz_' + str(batch_sz)
-    if not os.path.exists(path):
-        os.makedirs(path)
-
     data = np.load(dataset)
     visible_units = data.shape[1]
 
@@ -48,6 +42,13 @@ def rbm_mpf(hidden_units,decay,learning_rate,batch_sz,dataset = None,epsilon = 0
     W = get_mpf_params(visible_units, hidden_units)
 
     b = np.zeros(num_units)
+
+    path = '../Thea_mpf/lay1_' + str(visible_units) + '/lay2_' + str(hidden_units) + '/decay_' + str(decay) + '/lr_' + str(learning_rate)
+           # + '/bsz_' + str(batch_sz)
+    if not os.path.exists(path):
+        os.makedirs(path)
+
+
 
     out_epoch = 500
     in_epoch = 1
@@ -151,7 +152,7 @@ def rbm_mpf(hidden_units,decay,learning_rate,batch_sz,dataset = None,epsilon = 0
 
 
 
-def train_deep_rbm(learning_rate, lay1_unit, lay2_unit,decay, batch_size=40, epoches=500):
+def train_deep_rbm(learning_rate, lay1_unit, lay2_unit,decay, savename_w1 =None, savename_b1= None, batch_size=40, epoches=500):
 
 
     epsilon = 0.01
@@ -172,8 +173,9 @@ def train_deep_rbm(learning_rate, lay1_unit, lay2_unit,decay, batch_size=40, epo
     visible_units = data.shape[1]
 
 
-    savename_w1, savename_b1 = em_mpf(hidden_units = layer_1_hid,learning_rate = learning_rate, epsilon = 0.01,decay=decay,
-                                   batch_sz=batch_sz, epoch= epoches)
+    if savename_w1 is None:
+        savename_w1, savename_b1 = em_mpf(hidden_units = layer_1_hid,learning_rate = learning_rate, epsilon = 0.01,decay=decay,
+                                   batch_sz=batch_size, epoch= epoches)
 
     print('This is the end of the first RBM................')
     W1 = np.load(savename_w1)
@@ -185,7 +187,7 @@ def train_deep_rbm(learning_rate, lay1_unit, lay2_unit,decay, batch_size=40, epo
 
     hidden1_data = np.random.binomial(n=1,p = activation)
 
-    path = '../Thea_mpf/rbm_hidden_' + str(layer_2_hid)
+    path = '../Thea_mpf/lay1_' + str(activation.shape[1]) + '/lay2_' + str(layer_2_hid)
            # + '/decay_' + str(decay) + '/lr_' + str(learning_rate) \
            # + '/bsz_' + str(batch_sz)
     if not os.path.exists(path):
@@ -195,7 +197,7 @@ def train_deep_rbm(learning_rate, lay1_unit, lay2_unit,decay, batch_size=40, epo
     np.save(hidden1_data_path, hidden1_data)
 
     saveName_w2, saveName_b2 = rbm_mpf( dataset = hidden1_data_path,hidden_units=layer_2_hid,decay=decay,learning_rate= learning_rate,
-            batch_sz= batch_sz,epsilon = 0.01)
+            batch_sz= batch_size,epsilon = 0.01)
 
     return savename_w1, savename_b1,saveName_w2, saveName_b2
 
@@ -204,11 +206,10 @@ def train_deep_rbm(learning_rate, lay1_unit, lay2_unit,decay, batch_size=40, epo
 if __name__ == '__main__':
 
 
-    learning_list = [0.001]
-    lay1_list = [196, 400, 100]
-    lay2_list = [100, 60, 20]
-
-    decay_list = [0.001, 0.0001, 0.01]
+    learning_list = [0.001, 0.01, 0.0001]
+    lay1_list = [196]
+    lay2_list = [100, 196]
+    decay_list = [0, 0.00001, 0.1,  0.0001]
     epoches = 500
     for lr in learning_list:
         for decay in decay_list:
