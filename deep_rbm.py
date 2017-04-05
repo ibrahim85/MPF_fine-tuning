@@ -206,19 +206,19 @@ def train_deep_rbm(learning_rate, lay1_unit, lay2_unit,decay, savename_w1 =None,
 if __name__ == '__main__':
 
 
-    learning_list = [0.001, 0.01, 0.0001]
+    learning_list = [0.001]
     lay1_list = [196]
-    lay2_list = [100, 196]
+    lay2_list = [20]
     decay_list = [0, 0.00001, 0.1,  0.0001]
     epoches = 500
 
     for lr in learning_list:
         for decay in decay_list:
             for lay1_unit in lay1_list:
-                save_w1 = '../Thea_mpf/hidden_' + str(lay1_unit) + '/decay_' + str(decay) + '/lr_' + str(lr) \
-                        + '/bsz_' + str(40)+ '/weights_' + str(epoches) + '.npy'
-                save_b1 = '../Thea_mpf/hidden_' + str(lay1_unit) + '/decay_' + str(decay) + '/lr_' + str(lr) \
-                        + '/bsz_' + str(40)+ '/weights_' + str(epoches) + 'bias.npy'
+                save_w1 = '../Thea_mpf/hidden_' + str(lay1_unit) + '/decay_' + str(0.0001) + '/lr_' + str(lr) \
+                        + '/bsz_' + str(40)+ '/weights_' + str(499) + '.npy'
+                save_b1 = '../Thea_mpf/hidden_' + str(lay1_unit) + '/decay_' + str(0.0001) + '/lr_' + str(lr) \
+                        + '/bsz_' + str(40)+ '/bias_' + str(499) + '.npy'
                 for lay2_unit in lay2_list:
                     train_deep_rbm(learning_rate=lr,lay1_unit=lay1_unit,lay2_unit=lay2_unit,savename_w1=save_w1,
                                    savename_b1= save_b1,decay=decay,epoches=epoches)
