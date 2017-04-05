@@ -52,7 +52,7 @@ def rbm_mpf(hidden_units,decay,learning_rate,batch_sz,W_pre, b_pre, dataset = No
 
     W1 = np.load(W_pre)
     b1 = np.load(b_pre)
-    b1 = b1[visible_units:]
+    b1 = b1[W1.shape[0]:]
 
     W = get_mpf_params(visible_units, hidden_units)
 
