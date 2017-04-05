@@ -19,7 +19,7 @@ from KL_mpf import sigmoid
 
 
 
-def rbm_mpf(hidden_units,decay,learning_rate,batch_sz,dataset = None,epsilon = 0.01):
+def rbm_mpf(hidden_units,decay,learning_rate,batch_sz,W_pre, b_pre, dataset = None,epsilon = 0.01):
     '''
     This function defines a general rbm training process. Starting from the data, together
     with the hyper-parameters, we train the rbm and return the associated weight, bias.
@@ -32,12 +32,27 @@ def rbm_mpf(hidden_units,decay,learning_rate,batch_sz,dataset = None,epsilon = 0
     :param epsilon:
     :return:
     '''
-    data = np.load(dataset)
+    if dataset is None:
+        dataset = 'mnist.pkl.gz'
+        f = gzip.open(dataset, 'rb')
+        train_set, valid_set, test_set = pickle.load(f,encoding="bytes")
+        f.close()
+
+    else:
+        f = gzip.open(dataset, 'rb')
+        train_set, valid_set, test_set = pickle.load(dataset,encoding="bytes")
+        f.close()
+    data = train_set[0]
+
     visible_units = data.shape[1]
 
     n_train_batches = data.shape[0]//batch_sz
 
     num_units = visible_units + hidden_units
+
+    W1 = np.load(W_pre)
+    b1 = np.load(b_pre)
+    b1 = b1[visible_units:]
 
     W = get_mpf_params(visible_units, hidden_units)
 
@@ -91,12 +106,16 @@ def rbm_mpf(hidden_units,decay,learning_rate,batch_sz,dataset = None,epsilon = 0
 
     for em_epoch in range(out_epoch):
 
+
+        activation = sigmoid(np.dot(data,W1) + b1.reshape([1,-1]))
+        hidden1_data = np.random.binomial(n=1,p = activation)
+
         W = mpf_optimizer.W.get_value(borrow = True)
         b = mpf_optimizer.b.get_value(borrow = True)
 
         prop_W = W[:visible_units, visible_units:]
         prop_b = b[visible_units:]
-        activations, sample_data = propup(data,prop_W,prop_b)
+        activations, sample_data = propup(hidden1_data,prop_W,prop_b)
         #new_data.set_value(value=np.asarray(sample_data, dtype=theano.config.floatX),borrow = True)
         new_data.set_value(np.asarray(sample_data, dtype=theano.config.floatX))
 
@@ -171,31 +190,24 @@ def train_deep_rbm(learning_rate, lay1_unit, lay2_unit,decay, savename_w1 =None,
     visible_units = data.shape[1]
 
 
-    if savename_w1 is None:
+    if savename_w1 is None or (not os.path.exists(savename_w1)):
         savename_w1, savename_b1 = em_mpf(hidden_units = layer_1_hid,learning_rate = learning_rate, epsilon = 0.01,decay=decay,
                                    batch_sz=batch_size, epoch= epoches)
 
         print('This is the end of the first RBM................')
-    W1 = np.load(savename_w1)
 
-    b1 = np.load(savename_b1)
 
-    b1 = b1[visible_units:]
-    activation = sigmoid(np.dot(data,W1) + b1.reshape([1,-1]))
+    # path = '../Thea_mpf/lay1_' + str(activation.shape[1]) + '/lay2_' + str(layer_2_hid)
+    #        # + '/decay_' + str(decay) + '/lr_' + str(learning_rate) \
+    #        # + '/bsz_' + str(batch_sz)
+    # if not os.path.exists(path):
+    #     os.makedirs(path)
+    #
+    # hidden1_data_path = path + '/hidden_data.npy'
+    # np.save(hidden1_data_path, hidden1_data)
 
-    hidden1_data = np.random.binomial(n=1,p = activation)
-
-    path = '../Thea_mpf/lay1_' + str(activation.shape[1]) + '/lay2_' + str(layer_2_hid)
-           # + '/decay_' + str(decay) + '/lr_' + str(learning_rate) \
-           # + '/bsz_' + str(batch_sz)
-    if not os.path.exists(path):
-        os.makedirs(path)
-
-    hidden1_data_path = path + '/hidden_data.npy'
-    np.save(hidden1_data_path, hidden1_data)
-
-    saveName_w2, saveName_b2 = rbm_mpf( dataset = hidden1_data_path,hidden_units=layer_2_hid,decay=decay,learning_rate= learning_rate,
-            batch_sz= batch_size,epsilon = 0.01)
+    saveName_w2, saveName_b2 = rbm_mpf( dataset = None, hidden_units=layer_2_hid,decay=decay,learning_rate= learning_rate,
+            batch_sz= batch_size,epsilon = 0.01, W_pre= savename_w1, b_pre=savename_b1)
 
     return savename_w1, savename_b1,saveName_w2, saveName_b2
 
@@ -204,19 +216,19 @@ def train_deep_rbm(learning_rate, lay1_unit, lay2_unit,decay, savename_w1 =None,
 if __name__ == '__main__':
 
 
-    learning_list = [0.001, 0.01, 0.0001]
+    learning_list = [0.001]
     lay1_list = [196]
     lay2_list = [100, 196]
-    decay_list = [0, 0.00001, 0.1,  0.0001]
+    decay_list = [0, 0.0001, 0.001]
     epoches = 500
 
     for lr in learning_list:
         for decay in decay_list:
             for lay1_unit in lay1_list:
-                save_w1 = '../Thea_mpf/hidden_' + str(lay1_unit) + '/decay_' + str(decay) + '/lr_' + str(lr) \
-                        + '/bsz_' + str(40)+ '/weights_' + str(epoches) + '.npy'
-                save_b1 = '../Thea_mpf/hidden_' + str(lay1_unit) + '/decay_' + str(decay) + '/lr_' + str(lr) \
-                        + '/bsz_' + str(40)+ '/weights_' + str(epoches) + 'bias.npy'
+                save_w1 = '../Thea_mpf/hidden_' + str(lay1_unit) + '/decay_' + str(0.0001) + '/lr_' + str(lr) \
+                        + '/bsz_' + str(40)+ '/weights_' + str(int(epoches-1)) + '.npy'
+                save_b1 = '../Thea_mpf/hidden_' + str(lay1_unit) + '/decay_' + str(0.0001) + '/lr_' + str(lr) \
+                        + '/bsz_' + str(40)+ '/bias_' + str(int(epoches-1)) + '.npy'
                 for lay2_unit in lay2_list:
                     train_deep_rbm(learning_rate=lr,lay1_unit=lay1_unit,lay2_unit=lay2_unit,savename_w1=save_w1,
                                    savename_b1= save_b1,decay=decay,epoches=epoches)
