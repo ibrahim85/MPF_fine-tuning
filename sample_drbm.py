@@ -25,7 +25,7 @@ def generate_from_rbm(W_file, b_file):
     b_vis = b[:visible_units].reshape([1,-1])
     b_hid = b[visible_units:].reshape([1,-1])
 
-    n_chains = 40
+    n_chains = 20
     n_samples = 10
     rng = np.random.RandomState(123)
     test_set_x = test_set[0]
@@ -34,9 +34,10 @@ def generate_from_rbm(W_file, b_file):
     # pick random test examples, with which to initialize the persistent chain
     test_idx = rng.randint(number_of_test_samples - n_chains)
     persistent_vis_chain = np.asarray(test_set_x[test_idx:test_idx + n_chains])
+    print(test_set[1][test_idx:test_idx + n_chains])
 
     # end-snippet-6 start-snippet-7
-    plot_every = 1
+    plot_every = 100
     image_data = np.zeros(
         (29 * n_samples + 1, 29 * n_chains - 1), dtype='uint8'
     )
@@ -48,10 +49,13 @@ def generate_from_rbm(W_file, b_file):
         vis_mf = None
 
         for j in range(plot_every):
+            ### Experiment shows that
+
             upact = sigmoid(np.dot(v_samples,W) + b_hid)
             up_sample = np.random.binomial(n=1, p= upact)
             vis_mf = sigmoid(np.dot(up_sample, W.T) + b_vis)
             v_samples = np.random.binomial(n=1,p=vis_mf)
+            #v_samples = vis_mf
 
 
         print(' ... plotting sample ', idx)
