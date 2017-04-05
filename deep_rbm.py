@@ -50,9 +50,9 @@ def rbm_mpf(hidden_units,decay,learning_rate,batch_sz,W_pre, b_pre, dataset = No
 
     num_units = visible_units + hidden_units
 
-    W1 = np.load(W_pre)
-    b1 = np.load(b_pre)
-    b1 = b1[W1.shape[0]:]
+    Wpre = np.load(W_pre)
+    bpre = np.load(b_pre)
+    bpre = bpre[Wpre.shape[0]:]
 
     W = get_mpf_params(visible_units, hidden_units)
 
@@ -107,7 +107,7 @@ def rbm_mpf(hidden_units,decay,learning_rate,batch_sz,W_pre, b_pre, dataset = No
     for em_epoch in range(out_epoch):
 
 
-        activation = sigmoid(np.dot(data,W1) + b1.reshape([1,-1]))
+        activation = sigmoid(np.dot(data,Wpre) + bpre.reshape([1,-1]))
         hidden1_data = np.random.binomial(n=1,p = activation)
 
         W = mpf_optimizer.W.get_value(borrow = True)
