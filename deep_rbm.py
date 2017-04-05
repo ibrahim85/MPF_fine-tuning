@@ -44,8 +44,8 @@ def rbm_mpf(hidden_units,decay,learning_rate,batch_sz,W_pre, b_pre, dataset = No
         f.close()
     data = train_set[0]
 
-    visible_units = data.shape[1]
-
+    #visible_units = data.shape[1]
+    visible_units = 196
     n_train_batches = data.shape[0]//batch_sz
 
     num_units = visible_units + hidden_units
