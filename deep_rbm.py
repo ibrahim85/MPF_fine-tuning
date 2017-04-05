@@ -48,8 +48,6 @@ def rbm_mpf(hidden_units,decay,learning_rate,batch_sz,dataset = None,epsilon = 0
     if not os.path.exists(path):
         os.makedirs(path)
 
-
-
     out_epoch = 500
     in_epoch = 1
 
