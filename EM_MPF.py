@@ -182,7 +182,7 @@ def em_mpf(hidden_units,learning_rate, epsilon, epoch = 500,  decay =0.001,  bat
         print('The cost for mpf in epoch %d is %f'% (em_epoch,mean_epoch_error[-1]))
 
 
-        if int(em_epoch+1) % 100 ==0:
+        if int(em_epoch+1) % 50 ==0:
 
             saveName = path + '/weights_' + str(em_epoch) + '.png'
             tile_shape = (10, hidden_units//10)
@@ -225,7 +225,7 @@ def em_mpf(hidden_units,learning_rate, epsilon, epoch = 500,  decay =0.001,  bat
                 )
             )
             # end-snippet-6 start-snippet-7
-            plot_every = 1000
+            plot_every = 10000
             # define one step of Gibbs sampling (mf = mean-field) define a
             # function that does `plot_every` steps before returning the
             # sample for plotting
@@ -301,15 +301,15 @@ def em_mpf(hidden_units,learning_rate, epsilon, epoch = 500,  decay =0.001,  bat
 if __name__ == '__main__':
 
 
-    learning_rate_list = [0.001]
+    learning_rate_list = [0.001, 0.0001]
     # hyper-parameters are: learning rate, num_samples, sparsity, beta, epsilon, batch_sz, epoches
     # Important ones: num_samples, learning_rate,
-    hidden_units_list = [100, 40]
+    hidden_units_list = [196]
     n_samples_list = [1]
     beta_list = [0]
     sparsity_list = [.1]
     batch_list = [40]
-    decay_list = [0.0001]
+    decay_list = [0]
 
     for batch_size in batch_list:
         for n_samples in n_samples_list:
