@@ -23,7 +23,7 @@ from adam import Adam
 class dmpf_optimizer(object):
 
     def __init__(self,epsilon = 0.01, decay = 0.001,num_units = 984, W = None, b = None,
-                 input = None,explicit_EM = False, batch_sz = 20,
+                 input = None,explicit_EM = True, batch_sz = 20,
                  theano_rng = None, connect_function = '1-bit-flip' ):
         '''
 
@@ -215,6 +215,12 @@ class dmpf_optimizer(object):
             b_grad = T.mean(h,axis=0)*self.epsilon
             decay_grad = self.decay*self.W
             W_grad += decay_grad
+
+            ###############   Add  sparsity Here ###########################
+
+
+
+
 
         W_grad *= self.zero_grad
 

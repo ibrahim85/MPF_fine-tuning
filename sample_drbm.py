@@ -11,19 +11,31 @@ f = gzip.open(dataset, 'rb')
 train_set, valid_set, test_set = pickle.load(f,encoding="bytes")
 f.close()
 
-path = '../Thea_mpf/Generated_samples'
+path = '../mpf_results/lay1_196'
 if not os.path.exists(path):
     os.makedirs(path)
 
-def generate_from_rbm(W_file, b_file):
-    W = np.load(W_file)
+def generate_from_rbm(W_file, b_file, W2_file, b2_file):
 
+
+
+    W = np.load(W_file)
     print(W.shape)
     b = np.load(b_file)
     visible_units = W.shape[0]
 
     b_vis = b[:visible_units].reshape([1,-1])
     b_hid = b[visible_units:].reshape([1,-1])
+
+
+    W2 = np.load(W2_file)
+    print(W.shape)
+    b2 = np.load(b2_file)
+    visible2_units = W2.shape[0]
+
+    b2_vis = b2[:visible2_units].reshape([1,-1])
+    b2_hid = b2[visible2_units:].reshape([1,-1])
+
 
     n_chains = 20
     n_samples = 10
@@ -37,7 +49,7 @@ def generate_from_rbm(W_file, b_file):
     print(test_set[1][test_idx:test_idx + n_chains])
 
     # end-snippet-6 start-snippet-7
-    plot_every = 100
+    plot_every = 1
     image_data = np.zeros(
         (29 * n_samples + 1, 29 * n_chains - 1), dtype='uint8'
     )
@@ -53,7 +65,14 @@ def generate_from_rbm(W_file, b_file):
 
             upact = sigmoid(np.dot(v_samples,W) + b_hid)
             up_sample = np.random.binomial(n=1, p= upact)
-            vis_mf = sigmoid(np.dot(up_sample, W.T) + b_vis)
+
+            upact2 = sigmoid(np.dot(upact,W2)+b2_hid)
+            up2_sample = np.random.binomial(n=1,p=upact2)
+
+            downact1 = sigmoid(np.dot(up2_sample, W2.T) + b_hid)
+            down_sample1 = np.random.binomial(n=1, p= downact1)
+
+            vis_mf = sigmoid(np.dot(downact1, W.T) + b_vis)
             v_samples = np.random.binomial(n=1,p=vis_mf)
             #v_samples = vis_mf
 
@@ -81,7 +100,17 @@ def generate_from_rbm(W_file, b_file):
 
 
 
-W = path + '/weights_499.npy'
-b = path + '/bias_499.npy'
+decay_list = [0.0001]
+lr_list = [0.001]
+weight1 = '../mpf_results/lay1_196/weights_499.npy'
+bias1 = '../mpf_results/lay1_196/bias_499.npy'
+perplexity = 20
 
-generate_from_rbm(W_file=W, b_file=b)
+for decy in decay_list:
+    for lr in lr_list:
+        weight2 = '../mpf_results/lay1_196/lay2_40/decay_' + str(decy) + '/lr_' + str(lr) + '/weights_199.npy'
+        bias2 = '../mpf_results/lay1_196/lay2_40/decay_' + str(decy) + '/lr_' + str(lr) + '/bias_199.npy'
+
+
+
+        generate_from_rbm(W_file=weight1, b_file=bias1,W2_file= weight2, b2_file=bias2)

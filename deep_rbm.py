@@ -218,8 +218,8 @@ if __name__ == '__main__':
 
     learning_list = [0.001]
     lay1_list = [196]
-    lay2_list = [100, 196]
-    decay_list = [0, 0.0001, 0.001]
+    lay2_list = [100]
+    decay_list = [1, 10]
     epoches = 500
 
     for lr in learning_list:
